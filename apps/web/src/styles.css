@@ -1773,10 +1773,11 @@ input:focus-visible {
 
 /* Email confirmation: one centered, balanced composition on narrow screens. */
 .auth-screen.auth-sent-screen {
-  align-content: center;
+  align-items: center !important;
   box-sizing: border-box;
-  grid-template-rows: auto auto auto;
-  justify-content: center;
+  display: flex !important;
+  flex-direction: column;
+  justify-content: center !important;
   max-width: 480px;
   overflow-x: hidden;
   padding-top: max(34px, env(safe-area-inset-top));
@@ -1786,23 +1787,32 @@ input:focus-visible {
 
 .auth-screen.auth-sent-screen > .screen-title {
   box-sizing: border-box;
-  max-width: calc(100vw - 64px);
-  font-size: clamp(1.3rem, 5.6vw, 1.75rem);
+  flex: 0 0 auto;
+  max-width: calc(100% - 48px);
+  width: calc(100% - 48px);
+  font-size: clamp(1.2rem, 5vw, 1.5rem) !important;
+  letter-spacing: 0.045em;
   line-height: 1.05;
   text-align: center;
   white-space: normal;
 }
 
 .auth-screen.auth-sent-screen > .title-ornament {
+  flex: 0 0 auto;
   margin-bottom: 26px;
 }
 
 .auth-screen.auth-sent-screen .auth-sheet {
   align-items: center;
+  align-self: center;
+  box-sizing: border-box;
+  flex: 0 0 auto;
   gap: 0;
-  max-width: min(360px, calc(100vw - 56px));
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 360px;
   padding: clamp(30px, 7vw, 40px) clamp(22px, 6vw, 34px);
-  width: min(360px, calc(100vw - 56px));
+  width: calc(100% - 56px);
 }
 
 .auth-screen.auth-sent-screen .auth-seal {
