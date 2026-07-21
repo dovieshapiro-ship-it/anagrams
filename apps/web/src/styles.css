@@ -1772,7 +1772,7 @@ input:focus-visible {
 }
 
 /* Email confirmation: one centered, balanced composition on narrow screens. */
-.auth-screen:has(.auth-seal) {
+.auth-screen.auth-sent-screen {
   align-content: center;
   box-sizing: border-box;
   grid-template-rows: auto auto auto;
@@ -1784,7 +1784,7 @@ input:focus-visible {
   width: 100%;
 }
 
-.auth-screen:has(.auth-seal) > .screen-title {
+.auth-screen.auth-sent-screen > .screen-title {
   box-sizing: border-box;
   max-width: calc(100vw - 64px);
   font-size: clamp(1.3rem, 5.6vw, 1.75rem);
@@ -1793,11 +1793,11 @@ input:focus-visible {
   white-space: normal;
 }
 
-.auth-screen:has(.auth-seal) > .title-ornament {
+.auth-screen.auth-sent-screen > .title-ornament {
   margin-bottom: 26px;
 }
 
-.auth-screen:has(.auth-seal) .auth-sheet {
+.auth-screen.auth-sent-screen .auth-sheet {
   align-items: center;
   gap: 0;
   max-width: min(360px, calc(100vw - 56px));
@@ -1805,32 +1805,32 @@ input:focus-visible {
   width: min(360px, calc(100vw - 56px));
 }
 
-.auth-screen:has(.auth-seal) .auth-seal {
+.auth-screen.auth-sent-screen .auth-seal {
   margin-bottom: 24px;
   font-size: 2.35rem;
   line-height: 1;
 }
 
-.auth-screen:has(.auth-seal) .auth-sheet > p:first-of-type {
+.auth-screen.auth-sent-screen .auth-sheet > p:first-of-type {
   max-width: 320px;
   font-size: clamp(1rem, 4.4vw, 1.2rem);
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
-.auth-screen:has(.auth-seal) .auth-note {
+.auth-screen.auth-sent-screen .auth-note {
   margin-top: 16px;
   font-size: clamp(0.82rem, 3.6vw, 0.95rem);
 }
 
-.auth-screen:has(.auth-seal) .development-link {
+.auth-screen.auth-sent-screen .development-link {
   margin-top: 30px;
   max-width: 300px;
   font-size: clamp(0.94rem, 4.3vw, 1.12rem);
   line-height: 1.15;
 }
 
-.auth-screen:has(.auth-seal) .text-link {
+.auth-screen.auth-sent-screen .text-link {
   margin-top: 30px;
   font-size: clamp(0.72rem, 3.2vw, 0.86rem);
 }

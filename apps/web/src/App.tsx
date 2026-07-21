@@ -512,7 +512,7 @@ function AuthScreen(props: {
     );
   if (props.view === "sent")
     return (
-      <section className="auth-screen screen" aria-labelledby="email-title">
+      <section className="auth-screen auth-sent-screen screen" aria-labelledby="email-title">
         <h1 id="email-title" className="screen-title">CHECK YOUR EMAIL</h1>
         <div className="title-ornament" aria-hidden="true" />
         <div className="ivory-panel auth-sheet">
