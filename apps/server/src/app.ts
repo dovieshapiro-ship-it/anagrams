@@ -257,7 +257,16 @@ export async function buildApp(
 
   app.post(
     "/api/v1/auth/magic-links",
-    { config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } },
+    {
+      config: {
+        rateLimit: {
+          // Keep production conservative, but do not lock the owner out while
+          // repeatedly testing the local/tunnel login flow.
+          max: env.NODE_ENV === "production" ? 5 : 100,
+          timeWindow: "15 minutes",
+        },
+      },
+    },
     async (request, reply) => {
       const body = magicLinkRequestBody.parse(request.body);
       const continuePath = safeContinuePath(body.continuePath);
