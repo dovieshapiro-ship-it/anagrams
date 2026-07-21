@@ -1,0 +1,940 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import type {
+  WireCreateInvitationResponse,
+  WireGameStateResponse,
+  WireSubmitWordResponse,
+} from "@anagrams/shared-types";
+import * as api from "./api";
+import { copyInvite } from "./invite-share";
+
+type Landing = "start" | "rules";
+type GameMode = "solo" | "friend";
+
+export function App(): React.JSX.Element {
+  const initial = new URL(window.location.href);
+  const [landing, setLanding] = useState<Landing>("start");
+  const [identityOpen, setIdentityOpen] = useState(
+    initial.searchParams.has("token"),
+  );
+  const [token, setToken] = useState(initial.searchParams.get("token"));
+  const [mode, setMode] = useState<GameMode>(
+    initial.searchParams.has("token") ? "friend" : "solo",
+  );
+  const [gameId, setGameId] = useState(initial.searchParams.get("game"));
+  const [state, setState] = useState<WireGameStateResponse>();
+  const [invitation, setInvitation] = useState<WireCreateInvitationResponse>();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const automaticStartKey = useRef<string | undefined>(undefined);
+
+  function resetToStart(): void {
+    setState(undefined);
+    setGameId(null);
+    setInvitation(undefined);
+    setToken(null);
+    setMode("solo");
+    setLanding("start");
+    setIdentityOpen(false);
+    setBusy(false);
+    setError("");
+    window.history.replaceState({}, "", "/");
+  }
+
+  function chooseMode(nextMode: GameMode): void {
+    setToken(null);
+    setInvitation(undefined);
+    setMode(nextMode);
+    setError("");
+    setLanding("rules");
+    window.history.replaceState({}, "", "/");
+  }
+
+  const load = useCallback(async (): Promise<void> => {
+    if (!gameId) return;
+    try {
+      setState(await api.getGame(gameId));
+      setError("");
+    } catch (caught) {
+      if (
+        caught instanceof api.ApiClientError &&
+        ["UNAUTHENTICATED", "GAME_NOT_FOUND", "NOT_FOUND"].includes(caught.code)
+      ) {
+        setGameId(null);
+        setState(undefined);
+        setInvitation(undefined);
+        setLanding("start");
+        setIdentityOpen(Boolean(token));
+        setError(token ? "" : "That game is no longer available.");
+        if (!token) window.history.replaceState({}, "", "/");
+      } else setError(messageOf(caught));
+    }
+  }, [gameId, token]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+  useEffect(() => {
+    if (!gameId || !state) return undefined;
+    const active = state.me.round?.status === "active";
+    const timer = window.setInterval(() => void load(), active ? 1_000 : 2_500);
+    const recover = (): void => {
+      if (!document.hidden) void load();
+    };
+    window.addEventListener("online", recover);
+    document.addEventListener("visibilitychange", recover);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("online", recover);
+      document.removeEventListener("visibilitychange", recover);
+    };
+  }, [gameId, load, state]);
+  useEffect(() => {
+    if (
+      !gameId ||
+      !state ||
+      busy ||
+      state.game.status !== "in_progress" ||
+      state.me.round?.status !== "not_started"
+    )
+      return;
+    const key = `${gameId}:${String(state.game.version)}`;
+    if (automaticStartKey.current === key) return;
+    automaticStartKey.current = key;
+    setBusy(true);
+    setError("");
+    void api
+      .startRound(gameId, state.game.version)
+      .then(load)
+      .catch(async (caught: unknown) => {
+        setError(messageOf(caught));
+        await load();
+      })
+      .finally(() => setBusy(false));
+  }, [busy, gameId, load, state]);
+
+  async function identify(displayName: string): Promise<void> {
+    setBusy(true);
+    setError("");
+    try {
+      await api.createIdentity(displayName);
+      const invitationToken = token;
+      const id = invitationToken
+        ? await api.joinInvitation(invitationToken)
+        : mode === "solo"
+          ? await api.createSoloGame()
+          : await api.createGame();
+      if (invitationToken) setToken(null);
+      setGameId(id);
+      setLanding("rules");
+      setIdentityOpen(false);
+      replaceLocation(id);
+      if (!invitationToken && mode === "friend")
+        setInvitation(await api.createInvitation(id));
+      let next = await api.getGame(id);
+      if (!invitationToken && mode === "solo") {
+        if (next.me.status === "joined") {
+          await api.markReady(id, next.game.version);
+          next = await api.getGame(id);
+        }
+        if (next.me.round?.status === "not_started") {
+          await api.startRound(id, next.game.version);
+          next = await api.getGame(id);
+        }
+      }
+      setState(next);
+    } catch (caught) {
+      setError(messageOf(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function act<T>(action: () => Promise<T>): Promise<T | undefined> {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await action();
+      await load();
+      return result;
+    } catch (caught) {
+      setError(messageOf(caught));
+      await load();
+    } finally {
+      setBusy(false);
+    }
+    return undefined;
+  }
+
+  function moveTo(id: string): void {
+    setGameId(id);
+    setState(undefined);
+    setInvitation(undefined);
+    replaceLocation(id);
+  }
+
+  async function createSoloRematch(): Promise<void> {
+    setBusy(true);
+    setError("");
+    try {
+      const id = await api.createSoloGame();
+      setMode("solo");
+      setLanding("rules");
+      setInvitation(undefined);
+      setGameId(id);
+      replaceLocation(id);
+      setState(await api.getGame(id));
+    } catch (caught) {
+      setError(messageOf(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!state || !gameId)
+    return (
+      <main className="game-table">
+        {landing === "start" && (
+          <StartScreen
+            error={error}
+            onSolo={() => chooseMode("solo")}
+            onFriend={() => chooseMode("friend")}
+          />
+        )}
+        {landing === "rules" && (
+          <RulesScreen
+            onBack={() => setLanding("start")}
+            onPlay={() => setIdentityOpen(true)}
+          />
+        )}
+        {identityOpen && (
+          <IdentityModal
+            busy={busy}
+            error={error}
+            onSubmit={(name) => void identify(name)}
+            onClose={() => setIdentityOpen(false)}
+          />
+        )}
+      </main>
+    );
+
+  const currentMode = rematchMode(state, mode);
+
+  if (state.game.status === "completed")
+    return (
+      <main className="game-table">
+        <ResultsScreen
+          state={state}
+          busy={busy}
+          error={error}
+          onRequest={() =>
+            currentMode === "solo"
+              ? void createSoloRematch()
+              : void act(() => api.requestRematch(gameId))
+          }
+          onAccept={(requestId) =>
+            void act(async () =>
+              moveTo(await api.acceptRematch(gameId, requestId)),
+            )
+          }
+          onExit={resetToStart}
+        />
+      </main>
+    );
+  if (state.me.round?.status === "active" && state.game.rack)
+    return (
+      <main className="game-table">
+        <PlayScreen
+          state={state}
+          busy={busy}
+          error={error}
+          onSubmit={async (word) => {
+            const result = await api.submitWord(gameId, word);
+            await load();
+            return result;
+          }}
+          onFinish={() =>
+            void act(() => api.finishRound(gameId, state.game.version))
+          }
+        />
+      </main>
+    );
+  return (
+    <main className="game-table">
+      <WaitingScreen
+        state={state}
+        {...(invitation ? { invitation } : {})}
+        busy={busy}
+        error={error}
+        onInvite={async () => {
+          const created = await act(() => api.createInvitation(gameId));
+          if (created) setInvitation(created);
+          return created;
+        }}
+        onReady={() =>
+          void act(() => api.markReady(gameId, state.game.version))
+        }
+        onStart={() =>
+          void act(() => api.startRound(gameId, state.game.version))
+        }
+      />
+    </main>
+  );
+}
+
+function StartScreen(props: {
+  readonly error: string;
+  readonly onSolo: () => void;
+  readonly onFriend: () => void;
+}): React.JSX.Element {
+  return (
+    <section className="start-screen screen" aria-labelledby="start-title">
+      <h1 id="start-title">ANAGRAMS</h1>
+      <div className="title-ornament start-ornament" aria-hidden="true" />
+      <KiwiFruit className="start-kiwi" />
+      <p className="brand-mark">KiwiGames</p>
+      <div className="mode-actions">
+        <button className="table-button" type="button" onClick={props.onSolo}>
+          SOLO PLAY
+        </button>
+        <button className="table-button" type="button" onClick={props.onFriend}>
+          INVITE A FRIEND
+        </button>
+      </div>
+      <p className="game-facts">
+        60 SECONDS <span aria-hidden="true">•</span> 6 LETTERS
+      </p>
+      {props.error && (
+        <p className="start-error" role="status">
+          {props.error}
+        </p>
+      )}
+      <WalnutRail />
+    </section>
+  );
+}
+
+function RulesScreen(props: {
+  readonly onBack: () => void;
+  readonly onPlay: () => void;
+}): React.JSX.Element {
+  return (
+    <section className="rules-screen screen" aria-labelledby="rules-title">
+      <button
+        className="round-back"
+        type="button"
+        onClick={props.onBack}
+        aria-label="Back to title"
+      >
+        ←
+      </button>
+      <h1 id="rules-title" className="screen-title">
+        HOW TO PLAY
+      </h1>
+      <div className="title-ornament" aria-hidden="true">
+        <KiwiFruit className="ornament-kiwi" />
+      </div>
+      <div className="ivory-panel rules-sheet">
+        <div className="rule-row">
+          <span className="rule-medallion">◷</span>
+          <p>
+            Make as many words
+            <br />
+            as you can in 60 seconds
+          </p>
+        </div>
+        <div className="rule-row">
+          <span className="rule-medallion">A</span>
+          <p>
+            Use each letter
+            <br />
+            only once
+          </p>
+        </div>
+        <div className="rule-row">
+          <span className="rule-medallion">3+</span>
+          <p>
+            Words must be
+            <br />3 letters or more
+          </p>
+        </div>
+        <div className="score-copy">
+          <h2>SCORING</h2>
+          <p>
+            3 = 100&nbsp;&nbsp; · &nbsp;&nbsp;4 = 400
+            <br />5 = 1200&nbsp; · &nbsp;6 = 2000
+          </p>
+        </div>
+      </div>
+      <button className="table-button" type="button" onClick={props.onPlay}>
+        START ROUND
+      </button>
+      <WalnutRail />
+    </section>
+  );
+}
+
+function IdentityModal(props: {
+  readonly busy: boolean;
+  readonly error: string;
+  readonly onSubmit: (name: string) => void;
+  readonly onClose: () => void;
+}): React.JSX.Element {
+  const [name, setName] = useState("");
+  return (
+    <div className="modal-scrim" role="presentation">
+      <form
+        className="ivory-panel compact-panel modal-panel"
+        onSubmit={(event) => {
+          event.preventDefault();
+          props.onSubmit(name);
+        }}
+      >
+        <button
+          className="corner-button"
+          type="button"
+          onClick={props.onClose}
+          aria-label="Back to title"
+        >
+          ×
+        </button>
+        <label className="field-label" htmlFor="display-name">
+          YOUR FIRST NAME
+        </label>
+        <input
+          className="club-input"
+          id="display-name"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          maxLength={80}
+          autoComplete="nickname"
+          autoFocus
+        />
+        <button
+          className="table-button"
+          type="submit"
+          disabled={props.busy || !name.trim()}
+        >
+          {props.busy ? "PLEASE WAIT…" : "CONTINUE"}
+        </button>
+        <StatusMessage error={props.error} />
+      </form>
+    </div>
+  );
+}
+
+function WaitingScreen(props: {
+  readonly state: WireGameStateResponse;
+  readonly invitation?: WireCreateInvitationResponse;
+  readonly busy: boolean;
+  readonly error: string;
+  readonly onInvite: () => Promise<WireCreateInvitationResponse | undefined>;
+  readonly onReady: () => void;
+  readonly onStart: () => void;
+}): React.JSX.Element {
+  const [shareStatus, setShareStatus] = useState("");
+  const copyToastTimer = useRef<number | undefined>(undefined);
+  useEffect(
+    () => () => {
+      if (copyToastTimer.current !== undefined)
+        window.clearTimeout(copyToastTimer.current);
+    },
+    [],
+  );
+  const waitingOpponent = !props.state.opponent;
+  const canStart =
+    props.state.game.status === "in_progress" &&
+    props.state.me.round?.status === "not_started";
+  const needsReady =
+    !props.state.me.status.includes("ready") &&
+    props.state.me.status === "joined";
+  async function copy(): Promise<void> {
+    const invitation = props.invitation ?? (await props.onInvite());
+    if (!invitation) return;
+    const result = await copyInvite(invitation.invitationUrl);
+    setShareStatus(result === "copied" ? "Link copied" : "Copy failed");
+    if (copyToastTimer.current !== undefined)
+      window.clearTimeout(copyToastTimer.current);
+    copyToastTimer.current = window.setTimeout(() => setShareStatus(""), 1_000);
+  }
+  return (
+    <>
+      <RulesScreen
+        onBack={() => window.location.assign("/")}
+        onPlay={
+          canStart
+            ? props.onStart
+            : needsReady
+              ? props.onReady
+              : () => undefined
+        }
+      />
+      <div className="modal-scrim" role="presentation">
+        <div
+          className="ivory-panel compact-panel modal-panel"
+          aria-label="Game setup"
+        >
+          {waitingOpponent ? (
+            <>
+              <button
+                className="table-button copy-invite-button"
+                type="button"
+                onClick={() => void copy()}
+                disabled={props.busy}
+              >
+                COPY INVITE
+              </button>
+              <WaitingCopy />
+              {shareStatus && (
+                <p className="copy-toast" role="status">
+                  {shareStatus}
+                </p>
+              )}
+            </>
+          ) : canStart ? (
+            <>
+              <button
+                className="table-button"
+                type="button"
+                onClick={props.onStart}
+                disabled={props.busy}
+              >
+                START ROUND
+              </button>
+            </>
+          ) : needsReady ? (
+            <>
+              <button
+                className="table-button"
+                type="button"
+                onClick={props.onReady}
+                disabled={props.busy}
+              >
+                START ROUND
+              </button>
+            </>
+          ) : (
+            <>
+              <WaitingCopy />
+            </>
+          )}
+          <StatusMessage error={props.error} />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function WaitingCopy(): React.JSX.Element {
+  const [dotCount, setDotCount] = useState(1);
+  useEffect(() => {
+    const timer = window.setInterval(
+      () => setDotCount((current) => (current === 3 ? 1 : current + 1)),
+      450,
+    );
+    return () => window.clearInterval(timer);
+  }, []);
+  return (
+    <p className="wait-copy" aria-label="Waiting for opponent">
+      WAITING FOR OPPONENT
+      <span className="waiting-dots" aria-hidden="true">
+        {".".repeat(dotCount)}
+      </span>
+    </p>
+  );
+}
+
+interface RackTile {
+  readonly id: number;
+  readonly letter: string;
+}
+
+function makeRack(letters: readonly string[]): readonly RackTile[] {
+  return letters.map((letter, id) => ({ id, letter }));
+}
+
+export function PlayScreen(props: {
+  readonly state: WireGameStateResponse;
+  readonly busy: boolean;
+  readonly error: string;
+  readonly onSubmit: (word: string) => Promise<WireSubmitWordResponse>;
+  readonly onFinish: () => void;
+}): React.JSX.Element {
+  const [feedback, setFeedback] = useState("");
+  const originalRack = Array.from(props.state.game.rack ?? "");
+  const [rack, setRack] = useState<readonly RackTile[]>(() =>
+    makeRack(originalRack),
+  );
+  const [selected, setSelected] = useState<readonly number[]>([]);
+  const [anagramFound, setAnagramFound] = useState(false);
+  const [celebrationWord, setCelebrationWord] = useState("");
+  const entry = selected.map((id) => originalRack[id] ?? "").join("");
+  const [seconds, setSeconds] = useState(() => remaining(props.state));
+  const ended = useRef(false);
+  const toastTimer = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    const timer = window.setInterval(
+      () => setSeconds(remaining(props.state)),
+      250,
+    );
+    return () => window.clearInterval(timer);
+  }, [props.state]);
+  useEffect(
+    () => () => {
+      if (toastTimer.current !== undefined)
+        window.clearTimeout(toastTimer.current);
+    },
+    [],
+  );
+  useEffect(() => {
+    if (seconds === 0 && !ended.current) {
+      ended.current = true;
+      props.onFinish();
+    }
+  }, [props, seconds]);
+  async function submit(): Promise<void> {
+    try {
+      const result = await props.onSubmit(entry);
+      setFeedback(
+        result.accepted
+          ? `${result.normalizedWord} — ${result.score.toLocaleString()} points.`
+          : rejectionMessage(result.rejectionCode),
+      );
+      if (result.accepted && result.normalizedWord.length === 6) {
+        setAnagramFound(true);
+        setCelebrationWord(result.normalizedWord);
+        toastTimer.current = window.setTimeout(() => {
+          setAnagramFound(false);
+          setCelebrationWord("");
+        }, 1_000);
+      }
+      setSelected([]);
+      setRack(makeRack(originalRack));
+    } catch (caught) {
+      setFeedback(messageOf(caught));
+    }
+  }
+  function toggleTile(id: number): void {
+    setSelected((current) =>
+      current.includes(id)
+        ? current.filter((selectedId) => selectedId !== id)
+        : current.length < 6
+          ? [...current, id]
+          : current,
+    );
+  }
+  function removeLast(): void {
+    setSelected((current) => current.slice(0, -1));
+  }
+  function typeLetter(letter: string): void {
+    const tile = rack.find(
+      (candidate) =>
+        candidate.letter === letter.toLowerCase() &&
+        !selected.includes(candidate.id),
+    );
+    if (tile && selected.length < 6)
+      setSelected((current) => [...current, tile.id]);
+  }
+  useEffect(() => {
+    const handlePhysicalKeyboard = (event: KeyboardEvent): void => {
+      if (event.key === "Backspace") {
+        event.preventDefault();
+        removeLast();
+      } else if (/^[a-z]$/i.test(event.key)) {
+        event.preventDefault();
+        typeLetter(event.key);
+      }
+    };
+    window.addEventListener("keydown", handlePhysicalKeyboard);
+    return () => window.removeEventListener("keydown", handlePhysicalKeyboard);
+  });
+  return (
+    <section className="play-screen screen" aria-labelledby="play-title">
+      <h1 id="play-title" className="sr-only">
+        Anagrams round
+      </h1>
+      <div className="play-topbar">
+        <button
+          className="round-shuffle"
+          type="button"
+          aria-label="Shuffle letters"
+          onClick={() =>
+            setRack((current) => [
+              ...current.slice(1),
+              ...(current[0] ? [current[0]] : []),
+            ])
+          }
+        >
+          ⤨
+        </button>
+        <strong
+          className="timer-pill"
+          aria-label={`${String(seconds)} seconds remaining`}
+        >
+          00:{String(seconds).padStart(2, "0")}
+        </strong>
+      </div>
+      <div className="ivory-panel score-strip">
+        <span>WORDS: {props.state.me.validWordCount}</span>
+        <span>SCORE: {props.state.me.score.toLocaleString()}</span>
+      </div>
+      <div className="ivory-panel word-board">
+        <p>Make as many words as you can!</p>
+        <button
+          className={`word-slots${anagramFound ? " anagram-glow" : ""}`}
+          type="button"
+          aria-label="Selected word"
+        >
+          {Array.from({ length: 6 }, (_, index) => (
+            <span key={String(index)}>
+              {(anagramFound ? celebrationWord : entry)[index] ?? ""}
+            </span>
+          ))}
+        </button>
+      </div>
+      <form
+        className="entry-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+      >
+        <button
+          className="table-button enter-button"
+          type="submit"
+          disabled={props.busy || !entry}
+        >
+          ENTER
+        </button>
+        <p id="feedback" className="round-feedback" aria-live="polite">
+          {props.error || feedback}
+        </p>
+      </form>
+      <div className="rack" role="list" aria-label="Available letters">
+        {rack.map((tile) => (
+          <button
+            role="listitem"
+            type="button"
+            key={String(tile.id)}
+            data-used={selected.includes(tile.id)}
+            aria-pressed={selected.includes(tile.id)}
+            aria-disabled={selected.includes(tile.id)}
+            aria-label={`${tile.letter.toUpperCase()} tile, ${selected.includes(tile.id) ? "used; activate to return" : "available"}`}
+            onPointerDown={() => {
+              if (document.activeElement instanceof HTMLInputElement)
+                document.activeElement.blur();
+            }}
+            onClick={() => toggleTile(tile.id)}
+          >
+            {tile.letter}
+          </button>
+        ))}
+      </div>
+      {anagramFound && (
+        <div className="anagram-toast" role="status">
+          Anagram found!
+        </div>
+      )}
+      <WalnutRail />
+    </section>
+  );
+}
+
+function ResultsScreen(props: {
+  readonly state: WireGameStateResponse;
+  readonly busy: boolean;
+  readonly error: string;
+  readonly onRequest: () => void;
+  readonly onAccept: (id: string) => void;
+  readonly onExit: () => void;
+}): React.JSX.Element {
+  const results = props.state.results ?? [];
+  const me = results.find((item) => item.playerId === props.state.me.id);
+  const other = results.find((item) => item.playerId !== props.state.me.id);
+  const won = props.state.game.winnerPlayerId === props.state.me.id;
+  const solo = other?.displayName === "Kiwi";
+  const pending = props.state.pendingRematch;
+  return (
+    <section className="results-screen screen" aria-labelledby="results-title">
+      <h1 id="results-title" className="screen-title">
+        ROUND RESULTS
+      </h1>
+      <div className="title-ornament" aria-hidden="true">
+        <KiwiFruit className="ornament-kiwi" />
+      </div>
+      <div className="ivory-panel results-sheet">
+        <div className="results-grid">
+          <ResultColumn
+            name={me?.displayName ?? "YOU"}
+            score={me?.score ?? 0}
+            words={me?.words ?? []}
+            winner={!solo && won}
+          />
+          <div className="versus" aria-hidden="true">
+            VS
+          </div>
+          {solo ? (
+            <KiwiWordsColumn words={sixLetterKiwiWords(other)} />
+          ) : (
+            <ResultColumn
+              name={other?.displayName ?? "OPPONENT"}
+              score={other?.score ?? 0}
+              words={other?.words ?? []}
+              winner={Boolean(
+                other && props.state.game.winnerPlayerId === other.playerId,
+              )}
+            />
+          )}
+        </div>
+      </div>
+      <div className="winner-banner">
+        {!solo && won ? "YOU WIN!" : "ROUND COMPLETE"}
+      </div>
+      <div className="praise-card">
+        <strong>{solo || won ? "GREAT JOB!" : "WELL PLAYED!"}</strong>
+      </div>
+      {pending?.canAccept ? (
+        <button
+          className="table-button"
+          type="button"
+          disabled={props.busy}
+          onClick={() => props.onAccept(pending.id)}
+        >
+          ACCEPT REMATCH
+        </button>
+      ) : pending ? (
+        <p>Rematch requested. Waiting for your opponent…</p>
+      ) : (
+        <button
+          className="table-button"
+          type="button"
+          disabled={props.busy}
+          onClick={props.onRequest}
+        >
+          REMATCH
+        </button>
+      )}
+      <button className="exit-link" type="button" onClick={props.onExit}>
+        EXIT
+      </button>
+      <StatusMessage error={props.error} />
+      <WalnutRail />
+    </section>
+  );
+}
+
+function ResultColumn(props: {
+  readonly name: string;
+  readonly score: number;
+  readonly words: readonly string[];
+  readonly winner: boolean;
+}): React.JSX.Element {
+  return (
+    <article className="result-column" data-winner={props.winner}>
+      <h2>{props.name}</h2>
+      <strong className="final-score">{props.score.toLocaleString()}</strong>
+      <span className="points">POINTS</span>
+      <ul>
+        {props.words.map((word) => (
+          <li key={word}>
+            <span>{word}</span>
+          </li>
+        ))}
+      </ul>
+    </article>
+  );
+}
+type CompletedWireResult = NonNullable<
+  WireGameStateResponse["results"]
+>[number];
+
+export function sixLetterKiwiWords(
+  result: Pick<CompletedWireResult, "missedWords"> | undefined,
+): readonly string[] {
+  return result?.missedWords.filter((word) => word.length === 6) ?? [];
+}
+
+function KiwiWordsColumn(props: {
+  readonly words: readonly string[];
+}): React.JSX.Element {
+  return (
+    <article className="result-column kiwi-column">
+      <h2>KIWI’S 6-LETTER WORDS</h2>
+      <span className="kiwi-word-count">{props.words.length} POSSIBLE</span>
+      <ul>
+        {props.words.map((word) => (
+          <li key={word}>
+            <span>{word}</span>
+            <strong>2000</strong>
+          </li>
+        ))}
+      </ul>
+    </article>
+  );
+}
+function WalnutRail(): React.JSX.Element {
+  return <div className="walnut-rail" aria-hidden="true" />;
+}
+function KiwiFruit(props: { readonly className?: string }): React.JSX.Element {
+  return (
+    <span
+      className={`kiwi-mark${props.className ? ` ${props.className}` : ""}`}
+      role="img"
+      aria-label="Sliced kiwi fruit"
+    >
+      {Array.from({ length: 8 }, (_, index) => (
+        <i key={String(index)} />
+      ))}
+    </span>
+  );
+}
+function StatusMessage(props: {
+  readonly error: string;
+}): React.JSX.Element | null {
+  return props.error ? (
+    <p className="error-message" role="alert">
+      {props.error}
+    </p>
+  ) : null;
+}
+function remaining(state: WireGameStateResponse): number {
+  const expiry = state.me.round?.expiresAt;
+  if (!expiry) return 0;
+  const offset = Date.parse(state.serverNow) - Date.now();
+  return Math.max(
+    0,
+    Math.ceil((Date.parse(expiry) - (Date.now() + offset)) / 1_000),
+  );
+}
+function replaceLocation(gameId: string): void {
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.searchParams.set("game", gameId);
+  window.history.replaceState({}, "", url);
+}
+function messageOf(value: unknown): string {
+  return value instanceof Error
+    ? value.message
+    : "Something went wrong. Please try again.";
+}
+function rejectionMessage(code: string | null): string {
+  return (
+    (
+      {
+        EMPTY_WORD: "Enter a word.",
+        INVALID_CHARACTERS: "Use letters only.",
+        WORD_TOO_SHORT: "Words need at least 3 letters.",
+        WORD_TOO_LONG: "That word is too long.",
+        WORD_NOT_IN_RACK: "That word does not fit these letters.",
+        WORD_NOT_IN_DICTIONARY: "Not in the club dictionary.",
+        DUPLICATE_WORD: "You already found that one.",
+      } as Record<string, string>
+    )[code ?? ""] ?? "That word was not accepted."
+  );
+}
+
+export function rematchMode(
+  state: Pick<WireGameStateResponse, "opponent">,
+  selectedMode: GameMode,
+): GameMode {
+  return state.opponent?.displayName === "Kiwi" ? "solo" : selectedMode;
+}

@@ -1,0 +1,6 @@
+node_modules
+dist
+coverage
+pnpm-lock.yaml
+packages/game-engine/src/dictionary/words.txt
+work/
