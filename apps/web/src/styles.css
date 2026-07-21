@@ -1772,7 +1772,7 @@ input:focus-visible {
 }
 
 /* Email confirmation: one centered, balanced composition on narrow screens. */
-.auth-screen.auth-sent-screen {
+:is(.auth-screen.auth-sent-screen, .auth-screen[aria-labelledby="email-title"]) {
   align-items: center !important;
   box-sizing: border-box;
   display: flex !important;
@@ -1785,7 +1785,8 @@ input:focus-visible {
   width: 100%;
 }
 
-.auth-screen.auth-sent-screen > .screen-title {
+:is(.auth-screen.auth-sent-screen, .auth-screen[aria-labelledby="email-title"])
+  > .screen-title {
   box-sizing: border-box;
   flex: 0 0 auto;
   max-width: calc(100% - 48px);
@@ -1797,12 +1798,14 @@ input:focus-visible {
   white-space: normal;
 }
 
-.auth-screen.auth-sent-screen > .title-ornament {
+:is(.auth-screen.auth-sent-screen, .auth-screen[aria-labelledby="email-title"])
+  > .title-ornament {
   flex: 0 0 auto;
   margin-bottom: 26px;
 }
 
-.auth-screen.auth-sent-screen .auth-sheet {
+:is(.auth-screen.auth-sent-screen, .auth-screen[aria-labelledby="email-title"])
+  .auth-sheet {
   align-items: center;
   align-self: center;
   box-sizing: border-box;
@@ -1815,32 +1818,38 @@ input:focus-visible {
   width: calc(100% - 56px);
 }
 
-.auth-screen.auth-sent-screen .auth-seal {
+:is(.auth-screen.auth-sent-screen, .auth-screen[aria-labelledby="email-title"])
+  .auth-seal {
   margin-bottom: 24px;
   font-size: 2.35rem;
   line-height: 1;
 }
 
-.auth-screen.auth-sent-screen .auth-sheet > p:first-of-type {
+:is(.auth-screen.auth-sent-screen, .auth-screen[aria-labelledby="email-title"])
+  .auth-sheet
+  > p:first-of-type {
   max-width: 320px;
   font-size: clamp(1rem, 4.4vw, 1.2rem);
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
-.auth-screen.auth-sent-screen .auth-note {
+:is(.auth-screen.auth-sent-screen, .auth-screen[aria-labelledby="email-title"])
+  .auth-note {
   margin-top: 16px;
   font-size: clamp(0.82rem, 3.6vw, 0.95rem);
 }
 
-.auth-screen.auth-sent-screen .development-link {
+:is(.auth-screen.auth-sent-screen, .auth-screen[aria-labelledby="email-title"])
+  .development-link {
   margin-top: 30px;
   max-width: 300px;
   font-size: clamp(0.94rem, 4.3vw, 1.12rem);
   line-height: 1.15;
 }
 
-.auth-screen.auth-sent-screen .text-link {
+:is(.auth-screen.auth-sent-screen, .auth-screen[aria-labelledby="email-title"])
+  .text-link {
   margin-top: 30px;
   font-size: clamp(0.72rem, 3.2vw, 0.86rem);
 }

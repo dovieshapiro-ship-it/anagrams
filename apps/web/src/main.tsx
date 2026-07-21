@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
-import "./styles.css?v=account-layout-6";
+import "./styles.css?v=account-layout-7";
 
 const root = document.querySelector<HTMLDivElement>("#root");
 
