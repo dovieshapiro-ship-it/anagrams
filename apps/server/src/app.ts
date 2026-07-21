@@ -177,7 +177,9 @@ export async function buildApp(
   app.addHook("preHandler", async (request) => {
     if (
       !["POST", "PUT", "PATCH", "DELETE"].includes(request.method) ||
-      request.url === "/api/v1/dev/sessions"
+      request.url === "/api/v1/dev/sessions" ||
+      request.url === "/api/v1/auth/magic-links" ||
+      request.url === "/api/v1/auth/magic-links/consume"
     )
       return;
     const origin = requestOrigin(request);
@@ -188,7 +190,7 @@ export async function buildApp(
         "Request origin is not allowed",
       );
     if (!request.authUserId) return;
-    const csrf = request.headers["x-csrf-token"] ?? request.cookies[CSRF_COOKIE];
+    const csrf = request.headers["x-csrf-token"];
     if (typeof csrf !== "string" || tokenHash(csrf) !== request.csrfHash)
       throw new ApiError(403, "CSRF_REJECTED", "CSRF validation failed");
   });
@@ -207,6 +209,8 @@ export async function buildApp(
     "/api/v1/dev/sessions",
     { config: { rateLimit: { max: 10, timeWindow: "1 hour" } } },
     async (request, reply) => {
+      if (env.NODE_ENV === "production")
+        throw new ApiError(404, "NOT_FOUND", "Route not found");
       const body = createSessionBody.parse(request.body);
       const sessionToken = opaqueToken();
       const csrfToken = opaqueToken();
@@ -270,7 +274,7 @@ export async function buildApp(
       reply.header("Cache-Control", "no-store");
       return reply.status(202).send({
         accepted: true,
-        ...(env.NODE_ENV === "development" ? { developmentMagicLink } : {}),
+        ...(env.NODE_ENV !== "production" ? { developmentMagicLink } : {}),
       });
     },
   );
@@ -353,7 +357,7 @@ export async function buildApp(
         and g.status = 'completed'
         and g.mode = 'multiplayer'
     `);
-    const wins = Number((result[0] as { wins?: number } | undefined)?.wins ?? 0);
+    const wins = (result[0] as { wins?: number } | undefined)?.wins ?? 0;
     return { user: { ...profile, wins } };
   });
 

@@ -3,14 +3,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 
 describe("Anagrams app", () => {
-  beforeEach(() => window.history.replaceState({}, "", "/"));
+  const profile = {
+    user: {
+      id: "99999999-9999-4999-8999-999999999999",
+      displayName: "Alice",
+      email: "alice@example.com",
+      wins: 7,
+    },
+  };
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(profile)));
+  });
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
-  it("keeps the approved start screen clean", () => {
+  it("keeps the approved start screen clean and shows permanent wins", async () => {
     render(<App />);
+    expect(await screen.findByLabelText(/7 multiplayer wins/i)).toBeVisible();
     expect(screen.getByRole("heading", { name: "ANAGRAMS" })).toBeVisible();
     expect(
       screen.getByRole("img", { name: /sliced kiwi fruit/i }),
@@ -19,26 +31,26 @@ describe("Anagrams app", () => {
     expect(screen.getByText(/60 SECONDS.*6 LETTERS/)).toBeVisible();
   });
 
-  it("moves from the title to the approved rules board", () => {
+  it("moves from the title to the approved rules board", async () => {
     render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /solo play/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /solo play/i }));
     expect(screen.getByRole("heading", { name: /how to play/i })).toBeVisible();
     expect(screen.getByText(/6 = 2000/)).toBeVisible();
   });
 
-  it("requires a display name before creating a real game", () => {
-    render(<App />);
-    fireEvent.click(screen.getByRole("button", { name: /invite a friend/i }));
-    fireEvent.click(screen.getByRole("button", { name: /start round/i }));
-    const continueButton = screen.getByRole("button", { name: /continue/i });
-    expect(continueButton).toBeDisabled();
-    fireEvent.change(
-      screen.getByRole("textbox", { name: /your first name/i }),
-      {
-        target: { value: "Alice" },
-      },
+  it("offers separate login and account creation to signed-out players", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({ error: { code: "UNAUTHENTICATED", message: "Authentication required", requestId: "r1" } }),
+          { status: 401, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
     );
-    expect(continueButton).toBeEnabled();
+    render(<App />);
+    expect(await screen.findByRole("button", { name: /^log in$/i })).toBeVisible();
+    expect(screen.getByRole("button", { name: /create account/i })).toBeVisible();
   });
 
   it("recovers a stale game URL back to the clean start board", async () => {
@@ -49,18 +61,31 @@ describe("Anagrams app", () => {
     );
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            error: {
-              code: "GAME_NOT_FOUND",
-              message: "Game not found",
-              requestId: "request-1",
-            },
-          }),
-          { status: 404, headers: { "Content-Type": "application/json" } },
-        ),
-      ),
+      vi.fn((input: RequestInfo | URL) => {
+        const path =
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input.url;
+        return Promise.resolve(
+          path.endsWith("/me")
+            ? Response.json(profile)
+            : new Response(
+                JSON.stringify({
+                  error: {
+                    code: "GAME_NOT_FOUND",
+                    message: "Game not found",
+                    requestId: "request-1",
+                  },
+                }),
+                {
+                  status: 404,
+                  headers: { "Content-Type": "application/json" },
+                },
+              ),
+        );
+      }),
     );
     render(<App />);
     await waitFor(() =>
@@ -131,6 +156,7 @@ describe("Anagrams app", () => {
           started = true;
           return Promise.resolve(Response.json({ ok: true }));
         }
+        if (path.endsWith("/me")) return Promise.resolve(Response.json(profile));
         if (path.endsWith(`/games/${gameId}`))
           return Promise.resolve(Response.json(started ? active : waitingToStart));
         throw new Error(`Unexpected request: ${path}`);
@@ -218,12 +244,8 @@ describe("Anagrams app", () => {
             ? input.href
             : input.url;
       let body: unknown;
-      if (path.endsWith(`/games/${oldGameId}`)) body = completedState;
-      else if (path.endsWith("/dev/sessions"))
-        body = {
-          user: { id: meId, displayName: "Alice" },
-          csrfToken: "a".repeat(32),
-        };
+      if (path.endsWith("/me")) body = profile;
+      else if (path.endsWith(`/games/${oldGameId}`)) body = completedState;
       else if (path.endsWith("/games/solo"))
         body = { gameId: newGameId, version: 0 };
       else if (path.endsWith(`/games/${newGameId}`)) body = activeState;
@@ -242,11 +264,6 @@ describe("Anagrams app", () => {
     fireEvent.click(screen.getByRole("button", { name: /^exit$/i }));
     fireEvent.click(screen.getByRole("button", { name: /solo play/i }));
     fireEvent.click(screen.getByRole("button", { name: /start round/i }));
-    fireEvent.change(
-      screen.getByRole("textbox", { name: /your first name/i }),
-      { target: { value: "Alice" } },
-    );
-    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(

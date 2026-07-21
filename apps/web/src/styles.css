@@ -643,6 +643,137 @@ input:focus-visible {
     height: 36px;
   }
 }
+.auth-screen {
+  gap: clamp(16px, 3vh, 30px);
+}
+
+.auth-tagline,
+.auth-loading {
+  color: var(--ivory);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(0.9rem, 3vw, 1.15rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-align: center;
+}
+
+.auth-sheet {
+  display: grid;
+  gap: 16px;
+  margin: 0 auto;
+  max-width: 520px;
+  padding: clamp(28px, 6vw, 48px);
+  width: min(88vw, 520px);
+}
+
+.auth-sheet .field-label {
+  margin-bottom: -8px;
+}
+
+.auth-sheet p {
+  margin: 0;
+  text-align: center;
+}
+
+.auth-secondary {
+  background: var(--ivory);
+  color: var(--felt);
+}
+
+.auth-seal {
+  color: var(--oxblood);
+  font-size: 3rem;
+  text-align: center;
+}
+
+.auth-note {
+  font-size: 0.9rem;
+  opacity: 0.72;
+}
+
+.development-link {
+  box-sizing: border-box;
+  display: block;
+  text-align: center;
+  text-decoration: none;
+}
+
+.text-link,
+.logout-link {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.home-account {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin: -8px auto 0;
+  max-width: 560px;
+  width: min(88vw, 560px);
+}
+
+.welcome-name {
+  color: var(--ivory);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(0.82rem, 3vw, 1rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.trophy-stat {
+  align-items: center;
+  background: color-mix(in srgb, var(--felt) 82%, black);
+  border: 2px solid var(--gold);
+  border-radius: 999px;
+  color: var(--ivory);
+  display: grid;
+  grid-template-columns: 28px auto;
+  grid-template-rows: auto auto;
+  min-width: 82px;
+  padding: 7px 11px;
+}
+
+.trophy-stat strong {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.trophy-stat small {
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+}
+
+.trophy-icon {
+  border: 3px solid var(--gold);
+  border-radius: 3px 3px 9px 9px;
+  grid-row: 1 / 3;
+  height: 13px;
+  position: relative;
+  width: 17px;
+}
+
+.trophy-icon::before {
+  border-bottom: 3px solid var(--gold);
+  bottom: -9px;
+  content: "";
+  left: 5px;
+  position: absolute;
+  width: 7px;
+}
+
+.logout-link {
+  color: var(--ivory);
+  font-size: 0.72rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

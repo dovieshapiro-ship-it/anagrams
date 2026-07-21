@@ -42,7 +42,7 @@ describe("two-player API integration", () => {
   beforeEach(async () => {
     if (database === undefined)
       throw new Error("Database setup did not complete");
-    await database.sqlClient`truncate table rematch_requests, invitations, word_submissions, rounds, game_players, games, auth_sessions, chat_identities, users restart identity cascade`;
+    await database.sqlClient`truncate table magic_link_challenges, rematch_requests, invitations, word_submissions, rounds, game_players, games, auth_sessions, chat_identities, users restart identity cascade`;
   });
 
   afterAll(async () => {
@@ -161,6 +161,12 @@ describe("two-player API integration", () => {
       true,
     );
     expect(body.results.every((player) => Array.isArray(player.missedWords))).toBe(true);
+    const aliceProfile = await app.inject({
+      method: "GET",
+      url: "/api/v1/me",
+      headers: { cookie: alice.cookie },
+    });
+    expect(aliceProfile.json<{ user: { wins: number } }>().user.wins).toBe(1);
 
     const rematch = await post(`/api/v1/games/${gameId}/rematch`, alice, {});
     expect(rematch.statusCode).toBe(201);
@@ -242,6 +248,12 @@ describe("two-player API integration", () => {
     expect(
       (await post(`/api/v1/games/${gameId}/rematch`, alice, {})).statusCode,
     ).toBe(409);
+    const soloProfile = await app.inject({
+      method: "GET",
+      url: "/api/v1/me",
+      headers: { cookie: alice.cookie },
+    });
+    expect(soloProfile.json<{ user: { wins: number } }>().user.wins).toBe(0);
 
     const syntheticSessions = await database.sqlClient<{ count: number }[]>`
       select count(*)::int as count
@@ -299,6 +311,49 @@ describe("two-player API integration", () => {
       payload: {},
     });
     expect(missingCsrf.statusCode).toBe(403);
+  });
+
+  it("creates a permanent account from a one-time magic link", async () => {
+    if (app === undefined)
+      throw new Error("Application setup did not complete");
+    const requested = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/magic-links",
+      headers: { origin },
+      payload: { email: "Alice@Example.com", displayName: "Alice" },
+    });
+    expect(requested.statusCode).toBe(202);
+    const link = requested.json<{ developmentMagicLink: string }>().developmentMagicLink;
+    const token = new URL(link).hash.replace(/^#magic=/u, "");
+    expect(token.length).toBeGreaterThan(20);
+
+    const consumed = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/magic-links/consume",
+      headers: { origin },
+      payload: { token },
+    });
+    expect(consumed.statusCode).toBe(200);
+    expect(consumed.json<{ user: { displayName: string; email: string } }>().user).toMatchObject({
+      displayName: "Alice",
+      email: "alice@example.com",
+    });
+    const cookie = String(consumed.headers["set-cookie"]).split(";", 1)[0];
+    const me = await app.inject({
+      method: "GET",
+      url: "/api/v1/me",
+      headers: { cookie },
+    });
+    expect(me.statusCode).toBe(200);
+    expect(me.json<{ user: { displayName: string; wins: number } }>().user).toMatchObject({ displayName: "Alice", wins: 0 });
+
+    const replay = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/magic-links/consume",
+      headers: { origin },
+      payload: { token },
+    });
+    expect(replay.statusCode).toBe(401);
   });
 
   async function createSession(displayName: string): Promise<Session> {

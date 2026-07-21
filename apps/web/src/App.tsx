@@ -4,17 +4,22 @@ import type {
   WireGameStateResponse,
   WireSubmitWordResponse,
 } from "@anagrams/shared-types";
+import type { SessionUser } from "./api";
 import * as api from "./api";
 import { copyInvite } from "./invite-share";
 
 type Landing = "start" | "rules";
 type GameMode = "solo" | "friend";
+type AuthView = "welcome" | "signup" | "login" | "sent";
 
 export function App(): React.JSX.Element {
   const initial = new URL(window.location.href);
-  const [landing, setLanding] = useState<Landing>("start");
-  const [identityOpen, setIdentityOpen] = useState(
-    initial.searchParams.has("token"),
+  const magicToken = new URLSearchParams(window.location.hash.slice(1)).get("magic");
+  const [session, setSession] = useState<SessionUser | null>();
+  const [authView, setAuthView] = useState<AuthView>("welcome");
+  const [developmentMagicLink, setDevelopmentMagicLink] = useState("");
+  const [landing, setLanding] = useState<Landing>(
+    initial.searchParams.has("token") ? "rules" : "start",
   );
   const [token, setToken] = useState(initial.searchParams.get("token"));
   const [mode, setMode] = useState<GameMode>(
@@ -27,6 +32,29 @@ export function App(): React.JSX.Element {
   const [error, setError] = useState("");
   const automaticStartKey = useRef<string | undefined>(undefined);
 
+  useEffect(() => {
+    void (async () => {
+      try {
+        if (magicToken) {
+          const continueTo = await api.consumeMagicLink(magicToken);
+          window.history.replaceState({}, "", continueTo ?? "/");
+          if (continueTo) {
+            const continued = new URL(continueTo, window.location.origin);
+            setToken(continued.searchParams.get("token"));
+            if (continued.searchParams.has("token")) {
+              setMode("friend");
+              setLanding("rules");
+            }
+          }
+        }
+        setSession(await api.getMe());
+      } catch (caught) {
+        setSession(null);
+        setError(messageOf(caught));
+      }
+    })();
+  }, []);
+
   function resetToStart(): void {
     setState(undefined);
     setGameId(null);
@@ -34,7 +62,6 @@ export function App(): React.JSX.Element {
     setToken(null);
     setMode("solo");
     setLanding("start");
-    setIdentityOpen(false);
     setBusy(false);
     setError("");
     window.history.replaceState({}, "", "/");
@@ -50,7 +77,7 @@ export function App(): React.JSX.Element {
   }
 
   const load = useCallback(async (): Promise<void> => {
-    if (!gameId) return;
+    if (!gameId || !session) return;
     try {
       setState(await api.getGame(gameId));
       setError("");
@@ -63,12 +90,13 @@ export function App(): React.JSX.Element {
         setState(undefined);
         setInvitation(undefined);
         setLanding("start");
-        setIdentityOpen(Boolean(token));
+        if (caught instanceof api.ApiClientError && caught.code === "UNAUTHENTICATED")
+          setSession(null);
         setError(token ? "" : "That game is no longer available.");
         if (!token) window.history.replaceState({}, "", "/");
       } else setError(messageOf(caught));
     }
-  }, [gameId, token]);
+  }, [gameId, session, token]);
 
   useEffect(() => {
     void load();
@@ -112,11 +140,10 @@ export function App(): React.JSX.Element {
       .finally(() => setBusy(false));
   }, [busy, gameId, load, state]);
 
-  async function identify(displayName: string): Promise<void> {
+  async function beginGame(): Promise<void> {
     setBusy(true);
     setError("");
     try {
-      await api.createIdentity(displayName);
       const invitationToken = token;
       const id = invitationToken
         ? await api.joinInvitation(invitationToken)
@@ -126,7 +153,6 @@ export function App(): React.JSX.Element {
       if (invitationToken) setToken(null);
       setGameId(id);
       setLanding("rules");
-      setIdentityOpen(false);
       replaceLocation(id);
       if (!invitationToken && mode === "friend")
         setInvitation(await api.createInvitation(id));
@@ -148,6 +174,71 @@ export function App(): React.JSX.Element {
       setBusy(false);
     }
   }
+
+  async function sendMagicLink(
+    email: string,
+    displayName?: string,
+  ): Promise<void> {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api.requestMagicLink({
+        email,
+        ...(displayName ? { displayName } : {}),
+        continuePath: `${window.location.pathname}${window.location.search}`,
+      });
+      setDevelopmentMagicLink(result.developmentMagicLink ?? "");
+      setAuthView("sent");
+    } catch (caught) {
+      setError(messageOf(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function signOut(): Promise<void> {
+    setBusy(true);
+    try {
+      await api.logout();
+      resetToStart();
+      setSession(null);
+      setAuthView("welcome");
+    } catch (caught) {
+      setError(messageOf(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function returnHome(): Promise<void> {
+    resetToStart();
+    try {
+      setSession(await api.getMe());
+    } catch {
+      setSession(null);
+    }
+  }
+
+  if (session === undefined)
+    return (
+      <main className="game-table">
+        <AuthLoading />
+      </main>
+    );
+
+  if (session === null)
+    return (
+      <main className="game-table">
+        <AuthScreen
+          view={authView}
+          busy={busy}
+          error={error}
+          developmentMagicLink={developmentMagicLink}
+          onView={setAuthView}
+          onSubmit={(email, name) => void sendMagicLink(email, name)}
+        />
+      </main>
+    );
 
   async function act<T>(action: () => Promise<T>): Promise<T | undefined> {
     setBusy(true);
@@ -195,23 +286,17 @@ export function App(): React.JSX.Element {
       <main className="game-table">
         {landing === "start" && (
           <StartScreen
+            session={session}
             error={error}
             onSolo={() => chooseMode("solo")}
             onFriend={() => chooseMode("friend")}
+            onLogout={() => void signOut()}
           />
         )}
         {landing === "rules" && (
           <RulesScreen
             onBack={() => setLanding("start")}
-            onPlay={() => setIdentityOpen(true)}
-          />
-        )}
-        {identityOpen && (
-          <IdentityModal
-            busy={busy}
-            error={error}
-            onSubmit={(name) => void identify(name)}
-            onClose={() => setIdentityOpen(false)}
+            onPlay={() => void beginGame()}
           />
         )}
       </main>
@@ -236,7 +321,7 @@ export function App(): React.JSX.Element {
               moveTo(await api.acceptRematch(gameId, requestId)),
             )
           }
-          onExit={resetToStart}
+          onExit={() => void returnHome()}
         />
       </main>
     );
@@ -282,13 +367,23 @@ export function App(): React.JSX.Element {
 }
 
 function StartScreen(props: {
+  readonly session: SessionUser;
   readonly error: string;
   readonly onSolo: () => void;
   readonly onFriend: () => void;
+  readonly onLogout: () => void;
 }): React.JSX.Element {
   return (
     <section className="start-screen screen" aria-labelledby="start-title">
       <h1 id="start-title">ANAGRAMS</h1>
+      <div className="home-account">
+        <span className="welcome-name">WELCOME, {props.session.displayName.toUpperCase()}</span>
+        <span className="trophy-stat" aria-label={`${String(props.session.wins)} multiplayer wins`}>
+          <span className="trophy-icon" aria-hidden="true" />
+          <strong>{props.session.wins}</strong>
+          <small>WINS</small>
+        </span>
+      </div>
       <div className="title-ornament start-ornament" aria-hidden="true" />
       <KiwiFruit className="start-kiwi" />
       <p className="brand-mark">KiwiGames</p>
@@ -303,6 +398,9 @@ function StartScreen(props: {
       <p className="game-facts">
         60 SECONDS <span aria-hidden="true">•</span> 6 LETTERS
       </p>
+      <button className="logout-link" type="button" onClick={props.onLogout}>
+        LOG OUT
+      </button>
       {props.error && (
         <p className="start-error" role="status">
           {props.error}
@@ -373,52 +471,89 @@ function RulesScreen(props: {
   );
 }
 
-function IdentityModal(props: {
+function AuthLoading(): React.JSX.Element {
+  return (
+    <section className="auth-screen screen" aria-live="polite">
+      <h1 className="screen-title">ANAGRAMS</h1>
+      <div className="title-ornament" aria-hidden="true" />
+      <p className="auth-loading">OPENING THE CLUB…</p>
+      <WalnutRail />
+    </section>
+  );
+}
+
+function AuthScreen(props: {
+  readonly view: AuthView;
   readonly busy: boolean;
   readonly error: string;
-  readonly onSubmit: (name: string) => void;
-  readonly onClose: () => void;
+  readonly developmentMagicLink: string;
+  readonly onView: (view: AuthView) => void;
+  readonly onSubmit: (email: string, displayName?: string) => void;
 }): React.JSX.Element {
+  const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  if (props.view === "welcome")
+    return (
+      <section className="auth-screen start-screen screen" aria-labelledby="welcome-title">
+        <h1 id="welcome-title">ANAGRAMS</h1>
+        <div className="title-ornament start-ornament" aria-hidden="true" />
+        <KiwiFruit className="start-kiwi" />
+        <p className="brand-mark">KiwiGames</p>
+        <p className="auth-tagline">A WORD GAME FOR FRIENDS</p>
+        <div className="mode-actions">
+          <button className="table-button" type="button" onClick={() => props.onView("login")}>LOG IN</button>
+          <button className="table-button auth-secondary" type="button" onClick={() => props.onView("signup")}>CREATE ACCOUNT</button>
+        </div>
+        <p className="game-facts">60 SECONDS <span aria-hidden="true">•</span> 6 LETTERS</p>
+        <StatusMessage error={props.error} />
+        <WalnutRail />
+      </section>
+    );
+  if (props.view === "sent")
+    return (
+      <section className="auth-screen screen" aria-labelledby="email-title">
+        <h1 id="email-title" className="screen-title">CHECK YOUR EMAIL</h1>
+        <div className="title-ornament" aria-hidden="true" />
+        <div className="ivory-panel auth-sheet">
+          <span className="auth-seal" aria-hidden="true">✉</span>
+          <p>We sent a secure sign-in link to <strong>{email}</strong>.</p>
+          <p className="auth-note">The link expires in 15 minutes.</p>
+          {props.developmentMagicLink && (
+            <a className="table-button development-link" href={props.developmentMagicLink}>OPEN TEST SIGN-IN LINK</a>
+          )}
+          <button className="text-link" type="button" onClick={() => props.onView("login")}>USE A DIFFERENT EMAIL</button>
+        </div>
+        <WalnutRail />
+      </section>
+    );
+  const signup = props.view === "signup";
   return (
-    <div className="modal-scrim" role="presentation">
+    <section className="auth-screen screen" aria-labelledby="auth-title">
+      <h1 id="auth-title" className="screen-title">{signup ? "JOIN THE CLUB" : "WELCOME BACK"}</h1>
+      <div className="title-ornament" aria-hidden="true" />
       <form
-        className="ivory-panel compact-panel modal-panel"
+        className="ivory-panel auth-sheet"
         onSubmit={(event) => {
           event.preventDefault();
-          props.onSubmit(name);
+          props.onSubmit(email, signup ? name : undefined);
         }}
       >
-        <button
-          className="corner-button"
-          type="button"
-          onClick={props.onClose}
-          aria-label="Back to title"
-        >
-          ×
-        </button>
-        <label className="field-label" htmlFor="display-name">
-          YOUR FIRST NAME
-        </label>
-        <input
-          className="club-input"
-          id="display-name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          maxLength={80}
-          autoComplete="nickname"
-          autoFocus
-        />
+        {signup && <><label className="field-label" htmlFor="signup-name">YOUR FIRST NAME</label><input className="club-input" id="signup-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={40} autoComplete="nickname" /></>}
+        <label className="field-label" htmlFor="account-email">EMAIL</label>
+        <input className="club-input" id="account-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} maxLength={254} autoComplete="email" autoFocus />
         <button
           className="table-button"
           type="submit"
-          disabled={props.busy || !name.trim()}
+          disabled={props.busy || !email.trim() || (signup && !name.trim())}
         >
-          {props.busy ? "PLEASE WAIT…" : "CONTINUE"}
+          {props.busy ? "PLEASE WAIT…" : signup ? "CREATE ACCOUNT" : "EMAIL ME A MAGIC LINK"}
         </button>
         <StatusMessage error={props.error} />
+        <button className="text-link" type="button" onClick={() => props.onView(signup ? "login" : "signup")}>{signup ? "ALREADY A MEMBER? LOG IN" : "NEW HERE? CREATE ACCOUNT"}</button>
       </form>
-    </div>
+      <button className="round-back" type="button" onClick={() => props.onView("welcome")} aria-label="Back to welcome">←</button>
+      <WalnutRail />
+    </section>
   );
 }
 

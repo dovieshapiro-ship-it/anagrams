@@ -13,7 +13,6 @@ import {
   type WireGameStateResponse,
   type WireSubmitWordResponse,
 } from "@anagrams/shared-types";
-import { z } from "zod";
 const API = "/api/v1";
 
 export interface SessionUser {
@@ -23,25 +22,58 @@ export interface SessionUser {
   readonly wins: number;
 }
 
-const userSchema = z.object({
-  id: z.string().uuid(),
-  displayName: z.string(),
-  email: z.string().email().nullable(),
-  wins: z.number().int().nonnegative(),
+interface MagicRequestResponse {
+  readonly accepted: true;
+  readonly developmentMagicLink?: string;
+}
+interface MagicConsumeResponse {
+  readonly user: { readonly id: string; readonly displayName: string; readonly email: string };
+  readonly continueTo: string | null;
+}
+const meSchema = runtimeSchema<{ readonly user: SessionUser }>((value) => {
+  const user = record(record(value)?.user);
+  return Boolean(
+    user &&
+      typeof user.id === "string" &&
+      typeof user.displayName === "string" &&
+      (typeof user.email === "string" || user.email === null) &&
+      typeof user.wins === "number",
+  );
 });
-const meSchema = z.object({ user: userSchema });
-const magicRequestSchema = z.object({
-  accepted: z.literal(true),
-  developmentMagicLink: z.string().url().optional(),
+const magicRequestSchema = runtimeSchema<MagicRequestResponse>((value) => {
+  const item = record(value);
+  return (
+    item?.accepted === true &&
+      (item.developmentMagicLink === undefined ||
+        typeof item.developmentMagicLink === "string")
+  );
 });
-const magicConsumeSchema = z.object({
-  user: z.object({
-    id: z.string().uuid(),
-    displayName: z.string(),
-    email: z.string().email(),
-  }),
-  continueTo: z.string().nullable(),
+const magicConsumeSchema = runtimeSchema<MagicConsumeResponse>((value) => {
+  const item = record(value);
+  const user = record(item?.user);
+  return Boolean(
+    user &&
+      typeof user.id === "string" &&
+      typeof user.displayName === "string" &&
+      typeof user.email === "string" &&
+      (item?.continueTo === null || typeof item?.continueTo === "string"),
+  );
 });
+
+function record(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function runtimeSchema<T>(guard: (value: unknown) => boolean): RuntimeSchema<T> {
+  return {
+    safeParse: (value) =>
+      guard(value)
+        ? { success: true, data: value as T }
+        : { success: false },
+  };
+}
 
 interface RuntimeSchema<T> {
   safeParse(
@@ -90,12 +122,13 @@ export async function requestMagicLink(input: {
   });
 }
 
-export async function consumeMagicLink(token: string): Promise<void> {
-  await request("/auth/magic-links/consume", magicConsumeSchema, {
+export async function consumeMagicLink(token: string): Promise<string | null> {
+  const result = await request("/auth/magic-links/consume", magicConsumeSchema, {
     method: "POST",
     body: { token },
     csrf: false,
   });
+  return result.continueTo;
 }
 
 export async function logout(): Promise<void> {
