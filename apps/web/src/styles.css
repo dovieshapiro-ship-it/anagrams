@@ -1702,7 +1702,9 @@ input:focus-visible {
 
 /* Signed-in home: centered greeting, isolated trophy and logout controls. */
 .start-screen > .home-account {
-  display: block;
+  align-items: center !important;
+  display: flex !important;
+  justify-content: center !important;
   margin: 12px auto 0;
   max-width: none;
   width: 100%;
@@ -1718,6 +1720,22 @@ input:focus-visible {
   letter-spacing: 0.11em;
   line-height: 1.35;
   text-align: center;
+  width: 100%;
+}
+
+/* The signed-in home uses a separate ornament: make that line continuous too. */
+.start-screen > .start-ornament:not(.auth-ornament) {
+  display: block;
+  height: 0;
+  width: min(52vw, 210px);
+  background: none;
+  border-top: 1px solid #b9851e;
+}
+
+.start-screen > .start-ornament:not(.auth-ornament)::before,
+.start-screen > .start-ornament:not(.auth-ornament)::after {
+  content: none !important;
+  display: none !important;
 }
 
 .start-screen > .home-account .trophy-stat {
@@ -1756,14 +1774,20 @@ input:focus-visible {
 /* Email confirmation: one centered, balanced composition on narrow screens. */
 .auth-screen:has(.auth-seal) {
   align-content: center;
+  box-sizing: border-box;
   grid-template-rows: auto auto auto;
+  justify-content: center;
+  max-width: 480px;
+  overflow-x: hidden;
   padding-top: max(34px, env(safe-area-inset-top));
   padding-bottom: max(72px, env(safe-area-inset-bottom));
+  width: 100%;
 }
 
 .auth-screen:has(.auth-seal) > .screen-title {
-  max-width: 360px;
-  font-size: clamp(1.45rem, 6.2vw, 2rem);
+  box-sizing: border-box;
+  max-width: calc(100vw - 64px);
+  font-size: clamp(1.3rem, 5.6vw, 1.75rem);
   line-height: 1.05;
   text-align: center;
   white-space: normal;
@@ -1776,7 +1800,9 @@ input:focus-visible {
 .auth-screen:has(.auth-seal) .auth-sheet {
   align-items: center;
   gap: 0;
+  max-width: min(360px, calc(100vw - 56px));
   padding: clamp(30px, 7vw, 40px) clamp(22px, 6vw, 34px);
+  width: min(360px, calc(100vw - 56px));
 }
 
 .auth-screen:has(.auth-seal) .auth-seal {
