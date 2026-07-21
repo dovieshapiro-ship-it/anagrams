@@ -1582,6 +1582,137 @@ input:focus-visible {
   font-family: Georgia, "Times New Roman", serif;
   font-style: normal;
 }
+/* Account screens: compact, centered phone layout */
+.auth-screen.start-screen {
+  justify-content: flex-start;
+  padding-top: clamp(52px, 9dvh, 84px);
+}
+
+.auth-brand-cluster {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: clamp(30px, 6dvh, 54px);
+}
+
+.auth-screen.start-screen:has(.mode-actions) .auth-brand-cluster h1 {
+  margin: 0;
+}
+
+.auth-brand-cluster .auth-ornament {
+  display: block;
+  height: 1px;
+  margin: clamp(18px, 3dvh, 28px) auto clamp(18px, 3dvh, 26px);
+  width: min(52vw, 210px);
+  background: #b9851e;
+}
+
+.auth-brand-cluster .auth-ornament::before,
+.auth-brand-cluster .auth-ornament::after {
+  display: none;
+}
+
+.auth-brand-cluster .kiwi-mark.start-kiwi {
+  margin: 0 0 5px;
+}
+
+.auth-screen.start-screen:has(.mode-actions) .auth-brand-cluster .brand-mark {
+  margin: 0;
+}
+
+.auth-screen.start-screen .mode-actions {
+  gap: clamp(18px, 3dvh, 24px);
+}
+
+.auth-screen.start-screen .mode-actions .table-button {
+  margin: 0;
+}
+
+.auth-screen.start-screen:has(.mode-actions) .game-facts {
+  margin-top: clamp(26px, 5dvh, 42px);
+}
+
+.auth-screen:not(.start-screen) {
+  align-content: start;
+  display: grid;
+  grid-template-rows: auto auto auto 1fr;
+  justify-items: center;
+  min-height: 100dvh;
+  padding: max(72px, env(safe-area-inset-top)) 24px
+    max(28px, env(safe-area-inset-bottom));
+}
+
+.auth-screen:not(.start-screen) .screen-title {
+  font-size: clamp(1.9rem, 8vw, 2.5rem);
+  margin: 0;
+  white-space: nowrap;
+}
+
+.auth-screen:not(.start-screen) > .title-ornament {
+  margin: 14px auto 22px;
+  width: min(46vw, 180px);
+}
+
+.auth-sheet {
+  align-self: start;
+  box-sizing: border-box;
+  gap: 12px;
+  max-width: 420px;
+  padding: clamp(24px, 6vw, 34px);
+  width: min(calc(100vw - 48px), 420px);
+}
+
+.auth-sheet .field-label {
+  font-size: clamp(0.82rem, 3.6vw, 1rem);
+  letter-spacing: 0.14em;
+  margin: 4px 0 2px;
+  text-align: center;
+}
+
+.auth-sheet .club-input {
+  box-sizing: border-box;
+  font-size: 1.1rem;
+  height: 54px;
+  justify-self: center;
+  margin: 0 0 8px;
+  max-width: 350px;
+  min-width: 0;
+  width: 100%;
+}
+
+.auth-sheet .table-button {
+  font-size: clamp(1rem, 4.6vw, 1.25rem);
+  justify-self: center;
+  margin: 12px 0 2px;
+  max-width: 330px;
+  min-height: 58px;
+  min-width: 0;
+  padding-inline: 18px;
+  width: 100%;
+}
+
+.auth-sheet .text-link {
+  font-size: clamp(0.78rem, 3.3vw, 0.95rem);
+  justify-self: center;
+  margin-top: 6px;
+}
+
+@media (max-height: 700px) {
+  .auth-screen.start-screen {
+    padding-top: 38px;
+  }
+  .auth-brand-cluster {
+    margin-bottom: 24px;
+  }
+  .auth-brand-cluster .auth-ornament {
+    margin-block: 13px 15px;
+  }
+  .auth-screen:not(.start-screen) {
+    padding-top: 54px;
+  }
+}
+
 .rack button {
   display: grid;
   place-items: center;

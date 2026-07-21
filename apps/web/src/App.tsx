@@ -495,11 +495,12 @@ function AuthScreen(props: {
   if (props.view === "welcome")
     return (
       <section className="auth-screen start-screen screen" aria-labelledby="welcome-title">
-        <h1 id="welcome-title">ANAGRAMS</h1>
-        <div className="title-ornament start-ornament" aria-hidden="true" />
-        <KiwiFruit className="start-kiwi" />
-        <p className="brand-mark">KiwiGames</p>
-        <p className="auth-tagline">A WORD GAME FOR FRIENDS</p>
+        <div className="auth-brand-cluster">
+          <h1 id="welcome-title">ANAGRAMS</h1>
+          <div className="title-ornament start-ornament auth-ornament" aria-hidden="true" />
+          <KiwiFruit className="start-kiwi" />
+          <p className="brand-mark">KiwiGames</p>
+        </div>
         <div className="mode-actions">
           <button className="table-button" type="button" onClick={() => props.onView("login")}>LOG IN</button>
           <button className="table-button auth-secondary" type="button" onClick={() => props.onView("signup")}>CREATE ACCOUNT</button>
