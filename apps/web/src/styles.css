@@ -1602,15 +1602,17 @@ input:focus-visible {
 
 .auth-brand-cluster .auth-ornament {
   display: block;
-  height: 1px;
+  height: 0;
   margin: clamp(18px, 3dvh, 28px) auto clamp(18px, 3dvh, 26px);
   width: min(52vw, 210px);
-  background: #b9851e;
+  background: none;
+  border-top: 1px solid #b9851e;
 }
 
 .auth-brand-cluster .auth-ornament::before,
 .auth-brand-cluster .auth-ornament::after {
-  display: none;
+  content: none !important;
+  display: none !important;
 }
 
 .auth-brand-cluster .kiwi-mark.start-kiwi {
@@ -1696,6 +1698,115 @@ input:focus-visible {
   font-size: clamp(0.78rem, 3.3vw, 0.95rem);
   justify-self: center;
   margin-top: 6px;
+}
+
+/* Signed-in home: centered greeting, isolated trophy and logout controls. */
+.start-screen > .home-account {
+  display: block;
+  margin: 12px auto 0;
+  max-width: none;
+  width: 100%;
+}
+
+.start-screen > .home-account .welcome-name {
+  display: block;
+  margin: 0 auto;
+  max-width: min(68vw, 290px);
+  color: #efe5cb;
+  font-size: clamp(0.68rem, 2.7vw, 0.82rem);
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.start-screen > .home-account .trophy-stat {
+  position: absolute;
+  z-index: 6;
+  top: max(22px, env(safe-area-inset-top));
+  right: max(18px, env(safe-area-inset-right));
+}
+
+.start-screen > .logout-link {
+  position: absolute;
+  z-index: 6;
+  left: max(24px, env(safe-area-inset-left));
+  bottom: calc(78px + env(safe-area-inset-bottom));
+  margin: 0;
+  padding: 10px 0;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  opacity: 0.78;
+}
+
+/* Give the magic-link confirmation and its actions distinct breathing room. */
+.auth-sheet .auth-note {
+  margin-top: 10px;
+}
+
+.auth-sheet .development-link {
+  margin-top: 28px;
+}
+
+.auth-sheet .development-link + .text-link,
+.auth-sheet .auth-note + .text-link {
+  margin-top: 26px;
+}
+
+/* Email confirmation: one centered, balanced composition on narrow screens. */
+.auth-screen:has(.auth-seal) {
+  align-content: center;
+  grid-template-rows: auto auto auto;
+  padding-top: max(34px, env(safe-area-inset-top));
+  padding-bottom: max(72px, env(safe-area-inset-bottom));
+}
+
+.auth-screen:has(.auth-seal) > .screen-title {
+  max-width: 360px;
+  font-size: clamp(1.45rem, 6.2vw, 2rem);
+  line-height: 1.05;
+  text-align: center;
+  white-space: normal;
+}
+
+.auth-screen:has(.auth-seal) > .title-ornament {
+  margin-bottom: 26px;
+}
+
+.auth-screen:has(.auth-seal) .auth-sheet {
+  align-items: center;
+  gap: 0;
+  padding: clamp(30px, 7vw, 40px) clamp(22px, 6vw, 34px);
+}
+
+.auth-screen:has(.auth-seal) .auth-seal {
+  margin-bottom: 24px;
+  font-size: 2.35rem;
+  line-height: 1;
+}
+
+.auth-screen:has(.auth-seal) .auth-sheet > p:first-of-type {
+  max-width: 320px;
+  font-size: clamp(1rem, 4.4vw, 1.2rem);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.auth-screen:has(.auth-seal) .auth-note {
+  margin-top: 16px;
+  font-size: clamp(0.82rem, 3.6vw, 0.95rem);
+}
+
+.auth-screen:has(.auth-seal) .development-link {
+  margin-top: 30px;
+  max-width: 300px;
+  font-size: clamp(0.94rem, 4.3vw, 1.12rem);
+  line-height: 1.15;
+}
+
+.auth-screen:has(.auth-seal) .text-link {
+  margin-top: 30px;
+  font-size: clamp(0.72rem, 3.2vw, 0.86rem);
 }
 
 @media (max-height: 700px) {
