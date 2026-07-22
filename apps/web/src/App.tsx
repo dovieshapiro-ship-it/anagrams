@@ -13,7 +13,7 @@ import type {
   SessionUser,
 } from "./api";
 // @ts-expect-error Vite supports query-string imports used to invalidate tunnel caches.
-import * as versionedApi from "./api.ts?v=password-auth-20";
+import * as versionedApi from "./api.ts?v=cache-crash-fix-24";
 import { copyInvite } from "./invite-share";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -876,6 +876,10 @@ function WaitingScreen(props: {
     void api.getFriends().then((result) => setFriends(result.friends)).catch(() => setFriends([]));
   }, [waitingOpponent]);
   useEffect(() => {
+    if (typeof api.getOutgoingFriendInvitation !== "function") {
+      setOutgoingFriend(null);
+      return;
+    }
     void api
       .getOutgoingFriendInvitation(props.state.game.id)
       .then(setOutgoingFriend)
