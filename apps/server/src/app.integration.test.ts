@@ -347,7 +347,7 @@ describe("two-player API integration", () => {
       method: "POST",
       url: "/api/v1/auth/magic-links",
       headers: { origin },
-      payload: { email: "Alice@Example.com", displayName: "Alice" },
+      payload: { email: "Alice@Example.com", displayName: "Alice", username: "alice_words" },
     });
     expect(requested.statusCode).toBe(202);
     const link = requested.json<{ developmentMagicLink: string }>().developmentMagicLink;
@@ -361,9 +361,10 @@ describe("two-player API integration", () => {
       payload: { token },
     });
     expect(consumed.statusCode).toBe(200);
-    expect(consumed.json<{ user: { displayName: string; email: string } }>().user).toMatchObject({
+    expect(consumed.json<{ user: { displayName: string; email: string; username: string } }>().user).toMatchObject({
       displayName: "Alice",
       email: "alice@example.com",
+      username: "alice_words",
     });
     const cookie = String(consumed.headers["set-cookie"]).split(";", 1)[0];
     const me = await app.inject({
@@ -372,7 +373,7 @@ describe("two-player API integration", () => {
       headers: { cookie },
     });
     expect(me.statusCode).toBe(200);
-    expect(me.json<{ user: { displayName: string; wins: number } }>().user).toMatchObject({ displayName: "Alice", wins: 0 });
+    expect(me.json<{ user: { displayName: string; username: string; wins: number } }>().user).toMatchObject({ displayName: "Alice", username: "alice_words", wins: 0 });
 
     const replay = await app.inject({
       method: "POST",

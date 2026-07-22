@@ -56,7 +56,8 @@ describe("Anagrams app", () => {
     );
     render(<App />);
     expect(await screen.findByRole("button", { name: /^log in$/i })).toBeVisible();
-    expect(screen.getByRole("button", { name: /create account/i })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: /create account/i }));
+    expect(screen.getByLabelText("USERNAME")).toBeVisible();
   });
 
   it("recovers a stale game URL back to the clean start board", async () => {

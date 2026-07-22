@@ -19,7 +19,7 @@ import { copyInvite } from "./invite-share";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 const api = versionedApi as typeof import("./api");
 
-type Landing = "start" | "mode" | "rules" | "multiplayer";
+type Landing = "start" | "mode" | "rules" | "multiplayer" | "friends";
 type GameMode = "solo" | "friend";
 type AuthView = "welcome" | "signup" | "login" | "sent";
 
@@ -207,6 +207,7 @@ export function App(): React.JSX.Element {
   async function sendMagicLink(
     email: string,
     displayName?: string,
+    username?: string,
   ): Promise<void> {
     setBusy(true);
     setError("");
@@ -214,6 +215,7 @@ export function App(): React.JSX.Element {
       const result = await api.requestMagicLink({
         email,
         ...(displayName ? { displayName } : {}),
+        ...(username ? { username } : {}),
         continuePath: `${window.location.pathname}${window.location.search}`,
       });
       setDevelopmentMagicLink(result.developmentMagicLink ?? "");
@@ -282,7 +284,7 @@ export function App(): React.JSX.Element {
           error={error}
           developmentMagicLink={developmentMagicLink}
           onView={setAuthView}
-          onSubmit={(email, name) => void sendMagicLink(email, name)}
+          onSubmit={(email, name, username) => void sendMagicLink(email, name, username)}
         />
       </main>
     );
@@ -336,6 +338,7 @@ export function App(): React.JSX.Element {
             session={session}
             error={error}
             onPlay={() => setLanding("mode")}
+            onFriends={() => setLanding("friends")}
             onLogout={() => void signOut()}
           />
         )}
@@ -349,6 +352,7 @@ export function App(): React.JSX.Element {
         )}
         {landing === "multiplayer" && (
           <FriendsScreen
+            purpose="play"
             onBack={() => setLanding("mode")}
             onJoin={(id) => moveTo(id)}
             onPlayFriend={(friendUserId) => {
@@ -360,6 +364,16 @@ export function App(): React.JSX.Element {
             onUsernameSet={(username) =>
               setSession((current) => current ? { ...current, username } : current)
             }
+          />
+        )}
+        {landing === "friends" && (
+          <FriendsScreen
+            purpose="manage"
+            onBack={() => setLanding("start")}
+            onJoin={(id) => moveTo(id)}
+            onInvitationCount={setFriendInviteCount}
+            username={session.username}
+            onUsernameSet={(username) => setSession((current) => current ? { ...current, username } : current)}
           />
         )}
         {landing === "rules" && (
@@ -447,6 +461,7 @@ function StartScreen(props: {
   readonly session: SessionUser;
   readonly error: string;
   readonly onPlay: () => void;
+  readonly onFriends: () => void;
   readonly onLogout: () => void;
 }): React.JSX.Element {
   const [accountOpen, setAccountOpen] = useState(false);
@@ -456,7 +471,7 @@ function StartScreen(props: {
       <div className="home-account">
         <span className="welcome-name">WELCOME, {props.session.displayName.toUpperCase()}</span>
         <button className="account-person-button" type="button" aria-label="Open player profile" aria-expanded={accountOpen} onClick={() => setAccountOpen((open) => !open)}><span className="person-symbol" aria-hidden="true" /></button>
-        {accountOpen && <div className="account-popover" role="dialog" aria-label="Player profile"><strong>{props.session.displayName}</strong><span>@{props.session.username ?? "choose_username"}</span><span>{props.session.wins} {props.session.wins === 1 ? "WIN" : "WINS"}</span></div>}
+        {accountOpen && <div className="account-popover" role="dialog" aria-label="Player profile"><strong>{props.session.displayName}</strong><span>@{props.session.username ?? "choose_username"}</span><span>{props.session.wins} {props.session.wins === 1 ? "WIN" : "WINS"}</span><button type="button" onClick={props.onFriends}>FRIENDS</button></div>}
       </div>
       <div className="title-ornament start-ornament" aria-hidden="true" />
       <KiwiFruit className="start-kiwi" />
@@ -582,10 +597,11 @@ function AuthScreen(props: {
   readonly error: string;
   readonly developmentMagicLink: string;
   readonly onView: (view: AuthView) => void;
-  readonly onSubmit: (email: string, displayName?: string) => void;
+  readonly onSubmit: (email: string, displayName?: string, username?: string) => void;
 }): React.JSX.Element {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   if (props.view === "welcome")
     return (
       <section className="auth-screen start-screen screen" aria-labelledby="welcome-title">
@@ -630,16 +646,17 @@ function AuthScreen(props: {
         className="ivory-panel auth-sheet"
         onSubmit={(event) => {
           event.preventDefault();
-          props.onSubmit(email, signup ? name : undefined);
+          props.onSubmit(email, signup ? name : undefined, signup ? username : undefined);
         }}
       >
         {signup && <><label className="field-label" htmlFor="signup-name">YOUR FIRST NAME</label><input className="club-input" id="signup-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={40} autoComplete="nickname" /></>}
+        {signup && <><label className="field-label" htmlFor="signup-username">USERNAME</label><input className="club-input" id="signup-username" value={username} onChange={(event) => setUsername(event.target.value.toLowerCase().replace(/[^a-z0-9_]/gu, ""))} minLength={3} maxLength={20} autoComplete="username" /><small>3–20 letters, numbers, or underscores</small></>}
         <label className="field-label" htmlFor="account-email">EMAIL</label>
         <input className="club-input" id="account-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} maxLength={254} autoComplete="email" autoFocus />
         <button
           className="table-button"
           type="submit"
-          disabled={props.busy || !email.trim() || (signup && !name.trim())}
+          disabled={props.busy || !email.trim() || (signup && (!name.trim() || username.length < 3))}
         >
           {props.busy ? "PLEASE WAIT…" : signup ? "CREATE ACCOUNT" : "EMAIL ME A MAGIC LINK"}
         </button>
@@ -653,6 +670,7 @@ function AuthScreen(props: {
 }
 
 export function FriendsScreen(props: {
+  readonly purpose?: "manage" | "play";
   readonly onBack: () => void;
   readonly onJoin: (gameId: string) => void;
   readonly onPlayFriend?: (friendUserId: string) => void;
@@ -660,6 +678,7 @@ export function FriendsScreen(props: {
   readonly username?: string | null;
   readonly onUsernameSet?: (username: string) => void;
 }): React.JSX.Element {
+  const managing = props.purpose === "manage";
   const [data, setData] = useState<FriendsResponse>();
   const [gameInvites, setGameInvites] = useState<
     readonly FriendGameInvitation[]
@@ -758,19 +777,19 @@ export function FriendsScreen(props: {
   return (
     <section className="friends-screen screen" aria-labelledby="friends-title">
       <button className="round-back" type="button" onClick={props.onBack} aria-label="Back to home">←</button>
-      <h1 id="friends-title" className="screen-title">MULTIPLAYER</h1>
+      <h1 id="friends-title" className="screen-title">{managing ? "FRIENDS" : "MULTIPLAYER"}</h1>
       <div className="title-ornament" aria-hidden="true"><KiwiFruit className="ornament-kiwi" /></div>
       <div className="ivory-panel friends-sheet">
-        <div className="multiplayer-heading"><h2>CHOOSE A FRIEND</h2><button className="add-person-button" type="button" aria-label="Find and add people" onClick={() => setManageOpen((open) => !open)}><span className="person-symbol" aria-hidden="true" /><b aria-hidden="true">+</b></button></div>
+        {!managing && <div className="multiplayer-heading"><h2>CHOOSE A FRIEND</h2><button className="add-person-button" type="button" aria-label="Find and add people" onClick={() => setManageOpen((open) => !open)}><span className="person-symbol" aria-hidden="true" /><b aria-hidden="true">+</b></button></div>}
         {gameInvites.length > 0 && <FriendSection title="GAME INVITATIONS">{gameInvites.map((invite) => <FriendRow key={invite.id} friend={invite.inviter} detail="invited you to play" actions={<><button type="button" disabled={Boolean(busyId)} onClick={() => void run(invite.id, async () => props.onJoin(await api.acceptFriendGameInvitation(invite.id)))}>JOIN</button><button type="button" className="quiet-action" disabled={Boolean(busyId)} onClick={() => void run(invite.id, () => api.declineFriendGameInvitation(invite.id))}>DECLINE</button></>} />)}</FriendSection>}
-        <FriendSection title="YOUR FRIENDS">{data?.friends.length ? data.friends.map((friend) => <FriendRow key={friend.userId} friend={friend} detail={`@${friend.username}`} actions={<button type="button" disabled={Boolean(busyId)} onClick={() => props.onPlayFriend?.(friend.userId)}>PLAY</button>} />) : <p className="empty-friends">Add a friend to start a multiplayer game.</p>}</FriendSection>
-        {manageOpen && <div className="friend-manager">
+        {(data?.incomingRequests.length ?? 0) > 0 && <FriendSection title="FRIEND REQUESTS">{data?.incomingRequests.map((request) => <FriendRow key={request.id} friend={request.user} detail={`@${request.user.username}`} actions={<><button type="button" disabled={Boolean(busyId)} onClick={() => void run(request.id, () => api.respondToFriendRequest(request.id, "accept"))}>ACCEPT</button><button type="button" className="quiet-action" disabled={Boolean(busyId)} onClick={() => void run(request.id, () => api.respondToFriendRequest(request.id, "decline"))}>DECLINE</button></>} />)}</FriendSection>}
+        <FriendSection title="YOUR FRIENDS">{data?.friends.length ? data.friends.map((friend) => <FriendRow key={friend.userId} friend={friend} detail={`@${friend.username}`} actions={managing ? <button type="button" className="quiet-action" disabled={Boolean(busyId)} onClick={() => void run(friend.userId, () => api.removeFriend(friend.userId))}>REMOVE</button> : <button type="button" disabled={Boolean(busyId)} onClick={() => props.onPlayFriend?.(friend.userId)}>PLAY</button>} />) : <p className="empty-friends">Add a friend to start a multiplayer game.</p>}</FriendSection>
+        {(managing || manageOpen) && <div className="friend-manager">
           <form className="friend-search" onSubmit={(event) => { event.preventDefault(); void search(); }}>
             <label className="field-label" htmlFor="friend-username">FIND BY USERNAME</label>
             <div><input id="friend-username" className="club-input" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="off" /><button type="submit" disabled={!username.trim() || busyId === "search"}>FIND</button></div>
           </form>
           {searchResult?.user && <FriendRow friend={searchResult.user} detail={`@${searchResult.user.username}`} actions={searchResult.relationship === "none" ? <button type="button" disabled={Boolean(busyId)} onClick={() => void run("request", () => api.sendFriendRequest(searchResult.user?.username ?? ""))}>ADD</button> : <span className="friend-state">{searchResult.relationship.toUpperCase()}</span>} />}
-          {(data?.incomingRequests.length ?? 0) > 0 && <FriendSection title="REQUESTS">{data?.incomingRequests.map((request) => <FriendRow key={request.id} friend={request.user} detail={`@${request.user.username}`} actions={<><button type="button" disabled={Boolean(busyId)} onClick={() => void run(request.id, () => api.respondToFriendRequest(request.id, "accept"))}>ACCEPT</button><button type="button" className="quiet-action" disabled={Boolean(busyId)} onClick={() => void run(request.id, () => api.respondToFriendRequest(request.id, "decline"))}>DECLINE</button></>} />)}</FriendSection>}
           {(data?.outgoingRequests.length ?? 0) > 0 && <FriendSection title="SENT">{data?.outgoingRequests.map((request) => <FriendRow key={request.id} friend={request.user} detail="Request pending" actions={<span className="friend-state">PENDING</span>} />)}</FriendSection>}
         </div>}
         {message && <p className="friend-message" role="status">{message}</p>}

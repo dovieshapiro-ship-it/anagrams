@@ -83,6 +83,7 @@ const magicLinkRequestBody = z
   .object({
     email,
     displayName: z.string().trim().min(1).max(40).optional(),
+    username: usernameSchema.optional(),
     continuePath: z.string().max(512).optional(),
   })
   .strict();
@@ -282,12 +283,21 @@ export async function buildApp(
     async (request, reply) => {
       const body = magicLinkRequestBody.parse(request.body);
       const continuePath = safeContinuePath(body.continuePath);
+      if (body.username) {
+        const [taken] = await database.db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.username, body.username));
+        if (taken)
+          throw new ApiError(409, "USERNAME_UNAVAILABLE", "That username is already taken");
+      }
       const rawToken = opaqueToken();
       const expiresAt = new Date(Date.now() + 15 * 60_000);
       await database.db.insert(magicLinkChallenges).values({
         tokenHash: tokenHash(rawToken),
         normalizedEmail: body.email,
         requestedDisplayName: body.displayName,
+        requestedUsername: body.username,
         continuePath,
         expiresAt,
       });
@@ -332,7 +342,10 @@ export async function buildApp(
         if (!userId) {
           const [createdUser] = await tx
             .insert(users)
-            .values({ displayName: challenge.requestedDisplayName ?? challenge.normalizedEmail.split("@")[0] ?? "Player" })
+            .values({
+              displayName: challenge.requestedDisplayName ?? challenge.normalizedEmail.split("@")[0] ?? "Player",
+              username: challenge.requestedUsername,
+            })
             .returning();
           if (!createdUser) throw new Error("account creation failed");
           userId = createdUser.id;
@@ -356,7 +369,7 @@ export async function buildApp(
       setSessionCookies(reply, env, sessionToken, csrfToken, sessionExpiresAt);
       reply.header("Cache-Control", "no-store");
       return {
-        user: { id: profile.account.id, displayName: profile.account.displayName, email: profile.email },
+        user: { id: profile.account.id, displayName: profile.account.displayName, username: profile.account.username, email: profile.email },
         continueTo: profile.continueTo,
       };
     },

@@ -224,6 +224,7 @@ export async function getMe(): Promise<SessionUser | null> {
 export async function requestMagicLink(input: {
   readonly email: string;
   readonly displayName?: string;
+  readonly username?: string;
   readonly continuePath?: string;
 }): Promise<{ readonly developmentMagicLink?: string }> {
   return request("/auth/magic-links", magicRequestSchema, {

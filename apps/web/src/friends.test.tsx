@@ -33,7 +33,7 @@ describe("friends screen", () => {
 
     expect(await screen.findByRole("heading", { name: "GAME INVITATIONS" })).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Find and add people" }));
-    expect(screen.getByRole("heading", { name: "REQUESTS" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "FRIEND REQUESTS" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "YOUR FRIENDS" })).toBeVisible();
     expect(screen.getAllByText("Alice")).toHaveLength(2);
   });

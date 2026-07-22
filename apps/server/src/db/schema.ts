@@ -119,6 +119,7 @@ export const magicLinkChallenges = pgTable(
     tokenHash: text("token_hash").notNull(),
     normalizedEmail: text("normalized_email").notNull(),
     requestedDisplayName: text("requested_display_name"),
+    requestedUsername: text("requested_username"),
     continuePath: text("continue_path"),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     consumedAt: timestamp("consumed_at", { withTimezone: true }),

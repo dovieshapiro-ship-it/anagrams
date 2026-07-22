@@ -1143,6 +1143,17 @@ input:focus-visible {
   font-size: 0.82rem;
 }
 
+.account-popover button {
+  margin-top: 6px;
+  padding: 7px 10px;
+  color: #f4e8c9;
+  background: linear-gradient(#8c2e2d, #762024);
+  border: 1px solid #b9851e;
+  border-radius: 14px;
+  font: 700 0.62rem Georgia, serif;
+  letter-spacing: 0.1em;
+}
+
 .friend-manager {
   margin-top: 18px;
   padding-top: 16px;
