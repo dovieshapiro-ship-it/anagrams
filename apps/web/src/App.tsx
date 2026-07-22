@@ -31,8 +31,11 @@ export function App(): React.JSX.Element {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const automaticStartKey = useRef<string | undefined>(undefined);
+  const sessionBootstrapStarted = useRef(false);
 
   useEffect(() => {
+    if (sessionBootstrapStarted.current) return;
+    sessionBootstrapStarted.current = true;
     void (async () => {
       try {
         if (magicToken) {
@@ -48,6 +51,7 @@ export function App(): React.JSX.Element {
           }
         }
         setSession(await api.getMe());
+        setError("");
       } catch (caught) {
         setSession(null);
         setError(messageOf(caught));
@@ -381,7 +385,6 @@ function StartScreen(props: {
         <span className="trophy-stat" aria-label={`${String(props.session.wins)} multiplayer wins`}>
           <span className="trophy-icon" aria-hidden="true" />
           <strong>{props.session.wins}</strong>
-          <small>WINS</small>
         </span>
       </div>
       <div className="title-ornament start-ornament" aria-hidden="true" />

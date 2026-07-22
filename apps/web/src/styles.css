@@ -1739,20 +1739,51 @@ input:focus-visible {
 }
 
 .start-screen > .home-account .trophy-stat {
+  display: flex;
+  gap: 7px;
+  min-width: 0;
+  padding: 2px;
+  color: #eadcb9;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   position: absolute;
   z-index: 6;
   top: max(22px, env(safe-area-inset-top));
   right: max(18px, env(safe-area-inset-right));
 }
 
+.start-screen > .home-account .trophy-stat strong {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.start-screen > .home-account .trophy-icon {
+  border-width: 2px;
+  height: 10px;
+  width: 14px;
+}
+
+.start-screen > .home-account .trophy-icon::before {
+  border-bottom-width: 2px;
+  bottom: -7px;
+  left: 4px;
+  width: 6px;
+}
+
+.start-screen:not(.auth-screen) > h1 {
+  font-size: clamp(2.55rem, 10.8vw, 3.35rem);
+}
+
 .start-screen > .logout-link {
   position: absolute;
   z-index: 6;
   left: max(24px, env(safe-area-inset-left));
-  bottom: calc(78px + env(safe-area-inset-bottom));
+  top: max(34px, env(safe-area-inset-top));
+  bottom: auto;
   margin: 0;
   padding: 10px 0;
-  font-size: 0.62rem;
+  font-size: 0.54rem;
   letter-spacing: 0.12em;
   opacity: 0.78;
 }
