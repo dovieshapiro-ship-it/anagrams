@@ -1,12 +1,17 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FriendsScreen } from "./App";
-import * as api from "./api";
+// @ts-expect-error Vite supports the cache-busting query used by App.
+import * as versionedApi from "./api.ts?v=friends-13";
+import type * as ApiTypes from "./api";
+import type { FriendsResponse } from "./api";
+
+const api = versionedApi as typeof ApiTypes;
 
 const alice = { userId: "user-alice", username: "alice", displayName: "Alice" };
 const bob = { userId: "user-bob", username: "bob", displayName: "Bob" };
 
-function emptyFriends(overrides: Partial<api.FriendsResponse> = {}): api.FriendsResponse {
+function emptyFriends(overrides: Partial<FriendsResponse> = {}): FriendsResponse {
   return { friends: [], incomingRequests: [], outgoingRequests: [], ...overrides };
 }
 

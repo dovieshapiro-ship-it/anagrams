@@ -4,9 +4,20 @@ import type {
   WireGameStateResponse,
   WireSubmitWordResponse,
 } from "@anagrams/shared-types";
-import type { SessionUser } from "./api";
-import * as api from "./api";
+import type {
+  FriendGameInvitation,
+  FriendInvitationCreated,
+  FriendSearchResponse,
+  FriendSummary,
+  FriendsResponse,
+  SessionUser,
+} from "./api";
+// @ts-expect-error Vite supports query-string imports used to invalidate tunnel caches.
+import * as versionedApi from "./api.ts?v=friends-13";
 import { copyInvite } from "./invite-share";
+
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+const api = versionedApi as typeof import("./api");
 
 type Landing = "start" | "rules" | "friends";
 type GameMode = "solo" | "friend";
@@ -625,12 +636,12 @@ export function FriendsScreen(props: {
   readonly username?: string | null;
   readonly onUsernameSet?: (username: string) => void;
 }): React.JSX.Element {
-  const [data, setData] = useState<api.FriendsResponse>();
+  const [data, setData] = useState<FriendsResponse>();
   const [gameInvites, setGameInvites] = useState<
-    readonly api.FriendGameInvitation[]
+    readonly FriendGameInvitation[]
   >([]);
   const [username, setUsername] = useState("");
-  const [searchResult, setSearchResult] = useState<api.FriendSearchResponse>();
+  const [searchResult, setSearchResult] = useState<FriendSearchResponse>();
   const [busyId, setBusyId] = useState("");
   const [message, setMessage] = useState("");
   const [claimUsername, setClaimUsername] = useState("");
@@ -749,7 +760,7 @@ function FriendSection(props: { readonly title: string; readonly children: React
   return <section className="friend-section"><h2>{props.title}</h2>{props.children}</section>;
 }
 
-function FriendRow(props: { readonly friend: api.FriendSummary; readonly detail: string; readonly actions: React.ReactNode }): React.JSX.Element {
+function FriendRow(props: { readonly friend: FriendSummary; readonly detail: string; readonly actions: React.ReactNode }): React.JSX.Element {
   return <div className="friend-row"><span className="friend-monogram" aria-hidden="true">{props.friend.displayName.slice(0, 1).toUpperCase()}</span><span className="friend-identity"><strong>{props.friend.displayName}</strong><small>{props.detail}</small></span><span className="friend-actions">{props.actions}</span></div>;
 }
 
@@ -759,13 +770,13 @@ function WaitingScreen(props: {
   readonly busy: boolean;
   readonly error: string;
   readonly onInvite: () => Promise<WireCreateInvitationResponse | undefined>;
-  readonly onInviteFriend: (friendUserId: string) => Promise<api.FriendInvitationCreated | undefined>;
+  readonly onInviteFriend: (friendUserId: string) => Promise<FriendInvitationCreated | undefined>;
   readonly onReady: () => void;
   readonly onStart: () => void;
   readonly onExit: () => void;
 }): React.JSX.Element {
   const [shareStatus, setShareStatus] = useState("");
-  const [friends, setFriends] = useState<readonly api.FriendSummary[]>([]);
+  const [friends, setFriends] = useState<readonly FriendSummary[]>([]);
   const [invitedFriendId, setInvitedFriendId] = useState("");
   const copyToastTimer = useRef<number | undefined>(undefined);
   useEffect(
