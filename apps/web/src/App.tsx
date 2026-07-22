@@ -301,6 +301,8 @@ export function App(): React.JSX.Element {
     try {
       if (state.me.round?.status === "active")
         await api.finishRound(gameId, state.game.version);
+      else if (["waiting_for_opponent", "ready_check"].includes(state.game.status))
+        await api.cancelWaitingRoom(gameId);
       await returnHome();
     } catch (caught) {
       setError(messageOf(caught));

@@ -737,13 +737,26 @@ export async function buildApp(
         await tx.execute(
           sql`select pg_advisory_xact_lock(hashtext(${lowUserId}), hashtext(${highUserId}))`,
         );
+        const now = new Date();
+        await tx
+          .update(friendGameInvites)
+          .set({ status: "declined", resolvedAt: now })
+          .where(
+            and(
+              eq(friendGameInvites.inviterUserId, userId),
+              eq(friendGameInvites.recipientUserId, friendUserId),
+              eq(friendGameInvites.status, "pending"),
+            ),
+          );
         const inverseRows = await tx.execute(sql`
-          select * from friend_game_invites
-          where inviter_user_id=${friendUserId}
-            and recipient_user_id=${userId}
-            and status='pending'
-            and expires_at > now()
-          order by created_at desc
+          select fgi.* from friend_game_invites fgi
+          join games g on g.id=fgi.game_id
+          where fgi.inviter_user_id=${friendUserId}
+            and fgi.recipient_user_id=${userId}
+            and fgi.status='pending'
+            and fgi.expires_at > now()
+            and g.status='waiting_for_opponent'
+          order by fgi.created_at desc
           limit 1
           for update
         `);
@@ -763,7 +776,6 @@ export async function buildApp(
               .returning();
             if (!joined) throw new Error("crossed invitation join failed");
             await tx.insert(rounds).values({ gameId: inverse.game_id, gamePlayerId: joined.id });
-            const now = new Date();
             await tx
               .update(friendGameInvites)
               .set({ status: "accepted", resolvedAt: now })
@@ -835,7 +847,8 @@ export async function buildApp(
       .select({ id: friendGameInvites.id, gameId: friendGameInvites.gameId, expiresAt: friendGameInvites.expiresAt, inviterId: users.id, inviterDisplayName: users.displayName, inviterUsername: users.username })
       .from(friendGameInvites)
       .innerJoin(users, eq(users.id, friendGameInvites.inviterUserId))
-      .where(and(eq(friendGameInvites.recipientUserId, userId), eq(friendGameInvites.status, "pending"), gt(friendGameInvites.expiresAt, new Date())));
+      .innerJoin(games, eq(games.id, friendGameInvites.gameId))
+      .where(and(eq(friendGameInvites.recipientUserId, userId), eq(friendGameInvites.status, "pending"), gt(friendGameInvites.expiresAt, new Date()), eq(games.status, "waiting_for_opponent")));
     return { invitations: rows.map((row) => ({ id: row.id, gameId: row.gameId, expiresAt: row.expiresAt.toISOString(), inviter: { userId: row.inviterId, displayName: row.inviterDisplayName, username: row.inviterUsername } })) };
   });
 
@@ -870,6 +883,22 @@ export async function buildApp(
     const { inviteId } = z.object({ inviteId: uuid }).strict().parse(request.params);
     const [declined] = await database.db.update(friendGameInvites).set({ status: "declined", resolvedAt: new Date() }).where(and(eq(friendGameInvites.id, inviteId), eq(friendGameInvites.recipientUserId, userId), eq(friendGameInvites.status, "pending"))).returning({ id: friendGameInvites.id });
     if (!declined) throw new ApiError(404, "NOT_FOUND", "Invitation not found");
+    return { ok: true };
+  });
+
+  app.delete("/api/v1/games/:gameId/waiting-room", async (request) => {
+    const userId = requireAuth(request);
+    const { gameId } = gameParam.parse(request.params);
+    await database.db.transaction(async (tx) => {
+      await tx.execute(sql`select id from games where id=${gameId} for update`);
+      await membership(tx, gameId, userId);
+      const [game] = await tx.select().from(games).where(eq(games.id, gameId));
+      if (!game)
+        throw new ApiError(404, "GAME_NOT_FOUND", "Game not found");
+      if (!["waiting_for_opponent", "ready_check"].includes(game.status))
+        throw new ApiError(409, "INVALID_STATE", "The game has already started");
+      await tx.delete(games).where(eq(games.id, gameId));
+    });
     return { ok: true };
   });
 

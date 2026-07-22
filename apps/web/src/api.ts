@@ -373,6 +373,14 @@ export async function declineFriendGameInvitation(
   );
 }
 
+export async function cancelWaitingRoom(gameId: string): Promise<void> {
+  await request(
+    `/games/${encodeURIComponent(gameId)}/waiting-room`,
+    commandAcknowledgementSchema,
+    { method: "DELETE" },
+  );
+}
+
 export async function createGame(): Promise<string> {
   const result = await request("/games", wireCreateGameResponseSchema, {
     method: "POST",
