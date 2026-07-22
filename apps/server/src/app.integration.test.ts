@@ -10,7 +10,7 @@ import { loadEnv } from "./env.js";
 
 const databaseUrl =
   process.env.DATABASE_URL ??
-  "postgres://dovieshapiro@127.0.0.1:5432/anagrams_test";
+  "postgres://dovieshapiro@127.0.0.1:5432/anagrams_integration";
 const origin = "http://localhost:3000";
 
 interface Session {
@@ -281,6 +281,16 @@ describe("two-player API integration", () => {
     const gameId = created.json<{ gameId: string }>().gameId;
     const invited = await post(`/api/v1/games/${gameId}/friend-invitations`, alice, { friendUserId: bob.userId });
     expect(invited.statusCode).toBe(201);
+    const outgoing = await app.inject({
+      method: "GET",
+      url: `/api/v1/games/${gameId}/friend-invitation`,
+      headers: { cookie: alice.cookie },
+    });
+    expect(outgoing.statusCode).toBe(200);
+    expect(outgoing.json<{ friend: { userId: string; username: string } }>().friend).toMatchObject({
+      userId: bob.userId,
+      username: "bob_2",
+    });
     const inviteId = invited.json<{ invite: { id: string } }>().invite.id;
     const listed = await app.inject({ method: "GET", url: "/api/v1/friend-invitations", headers: { cookie: bob.cookie } });
     expect(listed.json<{ invitations: unknown[] }>().invitations).toHaveLength(1);

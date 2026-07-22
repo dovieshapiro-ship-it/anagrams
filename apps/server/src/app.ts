@@ -742,6 +742,34 @@ export async function buildApp(
     },
   );
 
+  app.get("/api/v1/games/:gameId/friend-invitation", async (request) => {
+    const userId = requireAuth(request);
+    const { gameId } = gameParam.parse(request.params);
+    const player = await membership(database.db, gameId, userId);
+    if (player.seat !== 1)
+      return { friend: null };
+    const [row] = await database.db
+      .select({
+        userId: users.id,
+        displayName: users.displayName,
+        username: users.username,
+      })
+      .from(friendGameInvites)
+      .innerJoin(users, eq(users.id, friendGameInvites.recipientUserId))
+      .where(
+        and(
+          eq(friendGameInvites.gameId, gameId),
+          eq(friendGameInvites.inviterUserId, userId),
+        ),
+      )
+      .limit(1);
+    return {
+      friend: row?.username
+        ? { userId: row.userId, displayName: row.displayName, username: row.username }
+        : null,
+    };
+  });
+
   app.get("/api/v1/friend-invitations", async (request) => {
     const userId = requireAuth(request);
     const rows = await database.db

@@ -158,6 +158,12 @@ const friendInvitationsSchema = runtimeSchema<{
       }),
   );
 });
+const outgoingFriendInvitationSchema = runtimeSchema<{
+  readonly friend: FriendSummary | null;
+}>((value) => {
+  const item = record(value);
+  return Boolean(item && (item.friend === null || friend(item.friend)));
+});
 const joinedFriendInvitationSchema = runtimeSchema<{ readonly gameId: string }>(
   (value) => typeof record(value)?.gameId === "string",
 );
@@ -325,6 +331,17 @@ export function createFriendInvitation(
     friendInvitationCreatedSchema,
     { method: "POST", body: { friendUserId } },
   );
+}
+
+export async function getOutgoingFriendInvitation(
+  gameId: string,
+): Promise<FriendSummary | null> {
+  return (
+    await request(
+      `/games/${encodeURIComponent(gameId)}/friend-invitation`,
+      outgoingFriendInvitationSchema,
+    )
+  ).friend;
 }
 
 export async function getFriendGameInvitations(): Promise<
