@@ -13,7 +13,7 @@ import type {
   SessionUser,
 } from "./api";
 // @ts-expect-error Vite supports query-string imports used to invalidate tunnel caches.
-import * as versionedApi from "./api.ts?v=password-auth-19";
+import * as versionedApi from "./api.ts?v=password-auth-20";
 import { copyInvite } from "./invite-share";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -334,6 +334,10 @@ export function App(): React.JSX.Element {
             error={error}
             onPlay={() => setLanding("mode")}
             onFriends={() => setLanding("friends")}
+            onSetPassword={async (password) => {
+              await api.setPassword(password);
+              setSession((current) => current ? { ...current, hasPassword: true } : current);
+            }}
             onLogout={() => void signOut()}
           />
         )}
@@ -457,16 +461,19 @@ function StartScreen(props: {
   readonly error: string;
   readonly onPlay: () => void;
   readonly onFriends: () => void;
+  readonly onSetPassword: (password: string) => Promise<void>;
   readonly onLogout: () => void;
 }): React.JSX.Element {
   const [accountOpen, setAccountOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordStatus, setPasswordStatus] = useState("");
   return (
     <section className="start-screen screen" aria-labelledby="start-title">
       <h1 id="start-title">ANAGRAMS</h1>
       <div className="home-account">
         <span className="welcome-name">WELCOME, {props.session.displayName.toUpperCase()}</span>
         <button className="account-person-button" type="button" aria-label="Open player profile" aria-expanded={accountOpen} onClick={() => setAccountOpen((open) => !open)}><span className="person-symbol" aria-hidden="true" /></button>
-        {accountOpen && <div className="account-popover" role="dialog" aria-label="Player profile"><strong>{props.session.displayName}</strong><span>@{props.session.username ?? "choose_username"}</span><span>{props.session.wins} {props.session.wins === 1 ? "WIN" : "WINS"}</span><button type="button" onClick={props.onFriends}>FRIENDS</button></div>}
+        {accountOpen && <div className="account-popover" role="dialog" aria-label="Player profile"><strong>{props.session.displayName}</strong><span>@{props.session.username ?? "choose_username"}</span><span>{props.session.wins} {props.session.wins === 1 ? "WIN" : "WINS"}</span>{!props.session.hasPassword && <form className="legacy-password" onSubmit={(event) => { event.preventDefault(); setPasswordStatus("SAVING…"); void props.onSetPassword(newPassword).then(() => { setPasswordStatus("PASSWORD SAVED"); setNewPassword(""); }).catch((caught: unknown) => setPasswordStatus(messageOf(caught))); }}><label htmlFor="legacy-password">SET A PASSWORD</label><input id="legacy-password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={8} maxLength={128} autoComplete="new-password" placeholder="8+ characters" /><button type="submit" disabled={newPassword.length < 8}>SAVE PASSWORD</button>{passwordStatus && <small>{passwordStatus}</small>}</form>}<button type="button" onClick={props.onFriends}>FRIENDS</button></div>}
       </div>
       <div className="title-ornament start-ornament" aria-hidden="true" />
       <KiwiFruit className="start-kiwi" />

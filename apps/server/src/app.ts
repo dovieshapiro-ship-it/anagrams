@@ -97,6 +97,7 @@ const passwordSignupBody = z.object({
   password,
 }).strict();
 const passwordLoginBody = z.object({ username: usernameSchema, password }).strict();
+const passwordBody = z.object({ password }).strict();
 
 const scrypt = promisify(nodeScrypt);
 
@@ -446,9 +447,10 @@ export async function buildApp(
   app.get("/api/v1/me", async (request) => {
     const userId = requireAuth(request);
     const [profile] = await database.db
-      .select({ id: users.id, displayName: users.displayName, username: users.username, email: userEmails.normalizedEmail })
+      .select({ id: users.id, displayName: users.displayName, username: users.username, email: userEmails.normalizedEmail, hasPassword: sql<boolean>`${passwordCredentials.userId} is not null` })
       .from(users)
       .leftJoin(userEmails, eq(userEmails.userId, users.id))
+      .leftJoin(passwordCredentials, eq(passwordCredentials.userId, users.id))
       .where(eq(users.id, userId));
     if (!profile) throw new ApiError(401, "UNAUTHENTICATED", "Authentication required");
     const result = await database.db.execute(sql`
@@ -492,6 +494,15 @@ export async function buildApp(
         throw new ApiError(409, "USERNAME_UNAVAILABLE", "Username is unavailable");
       throw error;
     }
+  });
+
+  app.post("/api/v1/me/password", async (request) => {
+    const userId = requireAuth(request);
+    const body = passwordBody.parse(request.body);
+    const [existing] = await database.db.select({ userId: passwordCredentials.userId }).from(passwordCredentials).where(eq(passwordCredentials.userId, userId));
+    if (existing) throw new ApiError(409, "INVALID_STATE", "This account already has a password");
+    await database.db.insert(passwordCredentials).values({ userId, passwordHash: await hashPassword(body.password) });
+    return { ok: true };
   });
 
   app.get(

@@ -21,6 +21,7 @@ export interface SessionUser {
   readonly email: string | null;
   readonly wins: number;
   readonly username: string | null;
+  readonly hasPassword: boolean;
 }
 
 export interface FriendSummary {
@@ -76,7 +77,8 @@ const meSchema = runtimeSchema<{ readonly user: SessionUser }>((value) => {
       typeof user.displayName === "string" &&
       (typeof user.email === "string" || user.email === null) &&
       typeof user.wins === "number" &&
-      (typeof user.username === "string" || user.username === null),
+      (typeof user.username === "string" || user.username === null) &&
+      typeof user.hasPassword === "boolean",
   );
 });
 const magicRequestSchema = runtimeSchema<MagicRequestResponse>((value) => {
@@ -273,6 +275,10 @@ export async function setUsername(username: string): Promise<string> {
       body: { username },
     })
   ).user.username;
+}
+
+export async function setPassword(password: string): Promise<void> {
+  await request("/me/password", commandAcknowledgementSchema, { method: "POST", body: { password } });
 }
 
 export function getFriends(): Promise<FriendsResponse> {

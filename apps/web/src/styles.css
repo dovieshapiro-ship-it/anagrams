@@ -1154,6 +1154,32 @@ input:focus-visible {
   letter-spacing: 0.1em;
 }
 
+.legacy-password {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid rgb(117 85 31 / 35%);
+}
+
+.legacy-password input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 8px;
+  color: #35281d;
+  background: #fffaf0;
+  border: 1px solid #b9851e;
+  font: 600 0.68rem Georgia, serif;
+}
+
+.legacy-password small {
+  max-width: 150px;
+  color: #762024;
+  font-size: 0.52rem;
+}
+
 .friend-manager {
   margin-top: 18px;
   padding-top: 16px;
