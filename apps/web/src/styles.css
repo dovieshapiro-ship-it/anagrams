@@ -1851,6 +1851,218 @@ input:focus-visible {
   white-space: normal;
 }
 
+/* Friends ledger and friend invitation picker. */
+.friends-link {
+  position: absolute;
+  z-index: 6;
+  right: max(22px, env(safe-area-inset-right));
+  bottom: calc(82px + env(safe-area-inset-bottom));
+  padding: 10px;
+  color: #e9b842;
+  background: transparent;
+  border: 0;
+  font: 700 0.72rem Georgia, serif;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+}
+.friend-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 6px;
+  padding: 0 5px;
+  color: #f7e6b5;
+  background: #762024;
+  border: 1px solid #d3a43b;
+  border-radius: 10px;
+  font-size: 0.66rem;
+  letter-spacing: 0;
+}
+.friends-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.friends-sheet {
+  width: 100%;
+  max-height: calc(100dvh - 210px);
+  padding: 18px;
+  overflow-y: auto;
+  text-align: left;
+}
+.friend-search .field-label {
+  display: block;
+  margin-bottom: 7px;
+  color: #314133;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+}
+.friend-search > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+.friend-search .club-input {
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  margin: 0;
+}
+.friend-search button,
+.friend-actions button {
+  min-height: 40px;
+  padding: 7px 10px;
+  color: #f3d98f;
+  background: #173d2e;
+  border: 1px solid #ad7e23;
+  border-radius: 18px;
+  font: 700 0.66rem Georgia, serif;
+  letter-spacing: 0.07em;
+  cursor: pointer;
+}
+.friend-section {
+  margin-top: 18px;
+}
+.friend-section h2,
+.invite-friends h2 {
+  margin: 0 0 7px;
+  color: #762024;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+}
+.friend-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 54px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(109, 75, 22, 0.2);
+}
+.friend-monogram {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  color: #e9bc50;
+  background: #173d2e;
+  border: 1px solid #b8892e;
+  border-radius: 50%;
+  font: 700 1rem Georgia, serif;
+}
+.friend-identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: #26392e;
+}
+.friend-identity strong,
+.friend-identity small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.friend-identity small {
+  color: #706143;
+  font-size: 0.7rem;
+}
+.friend-actions {
+  display: flex;
+  gap: 4px;
+}
+.friend-actions .quiet-action {
+  color: #6b1d20;
+  background: transparent;
+  border-color: rgba(107, 29, 32, 0.45);
+}
+.friend-state,
+.empty-friends,
+.friend-message {
+  color: #706143;
+  font: 700 0.66rem/1.35 Georgia, serif;
+  letter-spacing: 0.06em;
+}
+.empty-friends {
+  font-weight: 400;
+}
+.friend-message {
+  color: #762024;
+  text-align: center;
+}
+.invite-friends {
+  width: 100%;
+  max-height: 230px;
+  margin-bottom: 12px;
+  overflow-y: auto;
+  text-align: left;
+}
+.invite-divider {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 10px 0 2px;
+  color: #806d49;
+  font: 700 0.62rem Georgia, serif;
+}
+.invite-divider::before,
+.invite-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(109, 75, 22, 0.28);
+}
+
+.username-sheet {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 34px auto 0;
+  max-width: 390px;
+  padding: 36px 28px;
+  width: calc(100% - 44px);
+}
+.username-sheet p {
+  margin: 0 0 8px;
+  max-width: 270px;
+  line-height: 1.4;
+}
+.username-sheet .field-label {
+  margin: 8px 0 0;
+}
+.username-sheet .club-input {
+  margin: 0;
+  max-width: 300px;
+}
+.username-sheet small {
+  color: #706143;
+  font-size: 0.7rem;
+}
+.username-sheet .table-button {
+  margin-top: 16px;
+  min-width: min(100%, 280px);
+  font-size: 1rem;
+}
+
+@media (max-width: 350px) {
+  .friends-sheet {
+    padding-inline: 12px;
+  }
+  .friend-row {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    gap: 6px;
+  }
+  .friend-monogram {
+    width: 30px;
+    height: 30px;
+  }
+  .friend-actions button {
+    padding-inline: 7px;
+    font-size: 0.58rem;
+  }
+}
+
 :is(.auth-screen.auth-sent-screen, .auth-screen[aria-labelledby="email-title"])
   > .title-ornament {
   flex: 0 0 auto;

@@ -1,0 +1,12 @@
+CREATE TYPE friend_request_status AS ENUM ('pending','accepted','declined');
+CREATE TYPE friend_game_invite_status AS ENUM ('pending','accepted','declined');
+ALTER TABLE users ADD COLUMN username text;
+ALTER TABLE users ADD CONSTRAINT user_username_format CHECK (username IS NULL OR username ~ '^[a-z0-9_]{3,20}$');
+CREATE UNIQUE INDEX user_username_uq ON users(username);
+CREATE TABLE friendships (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_low_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE, user_high_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE, requested_by_user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE, status friend_request_status NOT NULL DEFAULT 'pending', created_at timestamptz NOT NULL DEFAULT now(), resolved_at timestamptz, CONSTRAINT friendship_canonical_order CHECK (user_low_id < user_high_id), CONSTRAINT friendship_requester_member CHECK (requested_by_user_id IN (user_low_id,user_high_id)), CONSTRAINT friendship_pair_uq UNIQUE(user_low_id,user_high_id));
+CREATE INDEX friendship_user_b_idx ON friendships(user_high_id,status);
+CREATE VIEW friend_requests AS SELECT id, requested_by_user_id, CASE WHEN requested_by_user_id=user_low_id THEN user_high_id ELSE user_low_id END AS recipient_user_id, status, created_at, resolved_at FROM friendships WHERE status='pending';
+ALTER TABLE invitations ADD COLUMN intended_user_id uuid REFERENCES users(id);
+CREATE TABLE friend_game_invites (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), game_id uuid NOT NULL REFERENCES games(id) ON DELETE CASCADE, inviter_user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE, recipient_user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE, status friend_game_invite_status NOT NULL DEFAULT 'pending', expires_at timestamptz NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), resolved_at timestamptz, CONSTRAINT friend_game_invite_not_self CHECK (inviter_user_id<>recipient_user_id));
+CREATE UNIQUE INDEX friend_game_invite_pending_game_recipient_uq ON friend_game_invites(game_id,recipient_user_id) WHERE status='pending';
+CREATE INDEX friend_game_invite_recipient_idx ON friend_game_invites(recipient_user_id,status,expires_at);

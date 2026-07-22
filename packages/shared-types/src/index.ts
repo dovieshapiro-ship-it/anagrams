@@ -125,6 +125,7 @@ export const errorCodeSchema = z.enum([
   "WORD_NOT_IN_DICTIONARY",
   "DUPLICATE_WORD",
   "RATE_LIMITED",
+  "USERNAME_UNAVAILABLE",
   "INTERNAL_ERROR",
   "SERVICE_UNAVAILABLE",
 ]);

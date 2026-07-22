@@ -16,6 +16,7 @@ const origin = "http://localhost:3000";
 interface Session {
   readonly cookie: string;
   readonly csrf: string;
+  readonly userId: string;
 }
 
 describe("two-player API integration", () => {
@@ -264,6 +265,32 @@ describe("two-player API integration", () => {
     expect(syntheticSessions[0]?.count).toBe(0);
   });
 
+  it("creates a mutual friendship and accepts a persistent friend game invite", async () => {
+    if (app === undefined || database === undefined) throw new Error("Test setup did not complete");
+    const alice = await createSession("Alice");
+    const bob = await createSession("Bob");
+    expect((await post("/api/v1/me/username", alice, { username: "alice_1" })).statusCode).toBe(200);
+    expect((await post("/api/v1/me/username", bob, { username: "bob_2" })).statusCode).toBe(200);
+    const requested = await post("/api/v1/friends/requests", alice, { username: "bob_2" });
+    expect(requested.statusCode).toBe(201);
+    const bobFriends = await app.inject({ method: "GET", url: "/api/v1/friends", headers: { cookie: bob.cookie } });
+    const requestId = bobFriends.json<{ incomingRequests: { id: string }[] }>().incomingRequests[0]?.id;
+    if (!requestId) throw new Error("Expected an incoming friend request");
+    expect((await post(`/api/v1/friends/requests/${requestId}/accept`, bob, {})).statusCode).toBe(200);
+    const created = await post("/api/v1/games", alice, {});
+    const gameId = created.json<{ gameId: string }>().gameId;
+    const invited = await post(`/api/v1/games/${gameId}/friend-invitations`, alice, { friendUserId: bob.userId });
+    expect(invited.statusCode).toBe(201);
+    const inviteId = invited.json<{ invite: { id: string } }>().invite.id;
+    const listed = await app.inject({ method: "GET", url: "/api/v1/friend-invitations", headers: { cookie: bob.cookie } });
+    expect(listed.json<{ invitations: unknown[] }>().invitations).toHaveLength(1);
+    const accepted = await post(`/api/v1/friend-invitations/${inviteId}/accept`, bob, {});
+    expect(accepted.statusCode).toBe(200);
+    expect(accepted.json()).toEqual({ gameId });
+    const count = await database.sqlClient<{ count: number }[]>`select count(*)::int as count from game_players where game_id=${gameId}`;
+    expect(count[0]?.count).toBe(2);
+  });
+
   it("allows exactly one concurrent invitation redemption and hides the game from the loser", async () => {
     if (app === undefined || database === undefined)
       throw new Error("Test setup did not complete");
@@ -373,6 +400,7 @@ describe("two-player API integration", () => {
     return {
       cookie,
       csrf: String(response.headers["x-csrf-token"]),
+      userId: response.json<{ user: { id: string } }>().user.id,
     };
   }
 

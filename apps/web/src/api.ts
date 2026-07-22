@@ -20,6 +20,36 @@ export interface SessionUser {
   readonly displayName: string;
   readonly email: string | null;
   readonly wins: number;
+  readonly username: string | null;
+}
+
+export interface FriendSummary {
+  readonly userId: string;
+  readonly username: string;
+  readonly displayName: string;
+}
+
+export interface FriendRequestSummary {
+  readonly id: string;
+  readonly user: FriendSummary;
+}
+
+export interface FriendsResponse {
+  readonly friends: readonly FriendSummary[];
+  readonly incomingRequests: readonly FriendRequestSummary[];
+  readonly outgoingRequests: readonly FriendRequestSummary[];
+}
+
+export interface FriendSearchResponse {
+  readonly user: FriendSummary | null;
+  readonly relationship: "none" | "friend" | "incoming" | "outgoing" | "self";
+}
+
+export interface FriendGameInvitation {
+  readonly id: string;
+  readonly gameId: string;
+  readonly inviter: FriendSummary;
+  readonly expiresAt: string;
 }
 
 interface MagicRequestResponse {
@@ -30,6 +60,14 @@ interface MagicConsumeResponse {
   readonly user: { readonly id: string; readonly displayName: string; readonly email: string };
   readonly continueTo: string | null;
 }
+export interface FriendInvitationCreated {
+  readonly invite: {
+    readonly id: string;
+    readonly gameId: string;
+    readonly friendUserId: string;
+    readonly expiresAt: string;
+  };
+}
 const meSchema = runtimeSchema<{ readonly user: SessionUser }>((value) => {
   const user = record(record(value)?.user);
   return Boolean(
@@ -37,7 +75,8 @@ const meSchema = runtimeSchema<{ readonly user: SessionUser }>((value) => {
       typeof user.id === "string" &&
       typeof user.displayName === "string" &&
       (typeof user.email === "string" || user.email === null) &&
-      typeof user.wins === "number",
+      typeof user.wins === "number" &&
+      (typeof user.username === "string" || user.username === null),
   );
 });
 const magicRequestSchema = runtimeSchema<MagicRequestResponse>((value) => {
@@ -59,6 +98,78 @@ const magicConsumeSchema = runtimeSchema<MagicConsumeResponse>((value) => {
       (item?.continueTo === null || typeof item?.continueTo === "string"),
   );
 });
+const friend = (value: unknown): value is FriendSummary => {
+  const item = record(value);
+  return Boolean(
+    item &&
+      typeof item.userId === "string" &&
+      typeof item.username === "string" &&
+      typeof item.displayName === "string",
+  );
+};
+const friendRequest = (value: unknown): value is FriendRequestSummary => {
+  const item = record(value);
+  return Boolean(item && typeof item.id === "string" && friend(item.user));
+};
+const friendsSchema = runtimeSchema<FriendsResponse>((value) => {
+  const item = record(value);
+  return Boolean(
+    item &&
+      Array.isArray(item.friends) &&
+      item.friends.every(friend) &&
+      Array.isArray(item.incomingRequests) &&
+      item.incomingRequests.every(friendRequest) &&
+      Array.isArray(item.outgoingRequests) &&
+      item.outgoingRequests.every(friendRequest),
+  );
+});
+const friendSearchSchema = runtimeSchema<FriendSearchResponse>((value) => {
+  const item = record(value);
+  return Boolean(
+    item &&
+      (item.user === null || friend(item.user)) &&
+      ["none", "friend", "incoming", "outgoing", "self"].includes(
+        String(item.relationship),
+      ),
+  );
+});
+const friendInvitationsSchema = runtimeSchema<{
+  readonly invitations: readonly FriendGameInvitation[];
+}>((value) => {
+  const item = record(value);
+  return Boolean(
+    item &&
+      Array.isArray(item.invitations) &&
+      item.invitations.every((entry) => {
+        const invitation = record(entry);
+        return Boolean(
+          invitation &&
+            typeof invitation.id === "string" &&
+            typeof invitation.gameId === "string" &&
+            typeof invitation.expiresAt === "string" &&
+            friend(invitation.inviter),
+        );
+      }),
+  );
+});
+const joinedFriendInvitationSchema = runtimeSchema<{ readonly gameId: string }>(
+  (value) => typeof record(value)?.gameId === "string",
+);
+const usernameResponseSchema = runtimeSchema<{
+  readonly user: { readonly username: string };
+}>((value) => typeof record(record(value)?.user)?.username === "string");
+const friendInvitationCreatedSchema = runtimeSchema<FriendInvitationCreated>(
+  (value) => {
+    const invite = record(record(value)?.invite);
+    return Boolean(
+      invite &&
+        typeof invite.id === "string" &&
+        typeof invite.gameId === "string" &&
+        typeof invite.friendUserId === "string" &&
+        typeof invite.expiresAt === "string",
+    );
+  },
+);
 
 function record(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null
@@ -136,6 +247,90 @@ export async function logout(): Promise<void> {
     method: "POST",
     body: {},
   });
+}
+
+export async function setUsername(username: string): Promise<string> {
+  return (
+    await request("/me/username", usernameResponseSchema, {
+      method: "POST",
+      body: { username },
+    })
+  ).user.username;
+}
+
+export function getFriends(): Promise<FriendsResponse> {
+  return request("/friends", friendsSchema);
+}
+
+export function searchFriend(username: string): Promise<FriendSearchResponse> {
+  return request(
+    `/friends/search?username=${encodeURIComponent(username)}`,
+    friendSearchSchema,
+  );
+}
+
+export async function sendFriendRequest(username: string): Promise<void> {
+  await request("/friends/requests", commandAcknowledgementSchema, {
+    method: "POST",
+    body: { username },
+  });
+}
+
+export async function respondToFriendRequest(
+  requestId: string,
+  response: "accept" | "decline",
+): Promise<void> {
+  await request(
+    `/friends/requests/${encodeURIComponent(requestId)}/${response}`,
+    commandAcknowledgementSchema,
+    { method: "POST", body: {} },
+  );
+}
+
+export async function removeFriend(friendUserId: string): Promise<void> {
+  await request(`/friends/${encodeURIComponent(friendUserId)}`, commandAcknowledgementSchema, {
+    method: "DELETE",
+  });
+}
+
+export function createFriendInvitation(
+  gameId: string,
+  friendUserId: string,
+): Promise<FriendInvitationCreated> {
+  return request(
+    `/games/${encodeURIComponent(gameId)}/friend-invitations`,
+    friendInvitationCreatedSchema,
+    { method: "POST", body: { friendUserId } },
+  );
+}
+
+export async function getFriendGameInvitations(): Promise<
+  readonly FriendGameInvitation[]
+> {
+  return (await request("/friend-invitations", friendInvitationsSchema))
+    .invitations;
+}
+
+export async function acceptFriendGameInvitation(
+  invitationId: string,
+): Promise<string> {
+  return (
+    await request(
+      `/friend-invitations/${encodeURIComponent(invitationId)}/accept`,
+      joinedFriendInvitationSchema,
+      { method: "POST", body: {} },
+    )
+  ).gameId;
+}
+
+export async function declineFriendGameInvitation(
+  invitationId: string,
+): Promise<void> {
+  await request(
+    `/friend-invitations/${encodeURIComponent(invitationId)}/decline`,
+    commandAcknowledgementSchema,
+    { method: "POST", body: {} },
+  );
 }
 
 export async function createGame(): Promise<string> {
@@ -251,7 +446,7 @@ async function command(
 }
 
 interface RequestOptions {
-  readonly method?: "GET" | "POST";
+  readonly method?: "GET" | "POST" | "DELETE";
   readonly body?: unknown;
   readonly headers?: Readonly<Record<string, string>>;
   readonly csrf?: boolean;
@@ -264,7 +459,10 @@ async function request<T>(
 ): Promise<T> {
   const headers: Record<string, string> = { ...options.headers };
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
-  if (options.csrf !== false && options.method === "POST") {
+  if (
+    options.csrf !== false &&
+    (options.method === "POST" || options.method === "DELETE")
+  ) {
     const token = readCookie("anagrams_csrf");
     if (token) headers["X-CSRF-Token"] = token;
   }

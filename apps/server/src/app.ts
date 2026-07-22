@@ -27,6 +27,8 @@ import type { Env } from "./env.js";
 import type { DatabaseHandle } from "./db/client.js";
 import {
   authSessions,
+  friendGameInvites,
+  friendships,
   gamePlayers,
   games,
   invitations,
@@ -66,6 +68,16 @@ const versionBody = z
   .object({ expectedVersion: z.number().int().nonnegative() })
   .strict();
 const idBody = z.object({ requestId: uuid }).strict();
+const reservedUsernames = new Set([
+  "admin", "administrator", "kiwi", "kiwigames", "moderator", "support", "system",
+]);
+const usernameSchema = z
+  .string()
+  .regex(/^[a-z0-9_]{3,20}$/u)
+  .refine((value) => !reservedUsernames.has(value), "This username is reserved");
+const usernameBody = z.object({ username: usernameSchema }).strict();
+const usernameQuery = z.object({ username: usernameSchema }).strict();
+const friendInviteBody = z.object({ friendUserId: uuid }).strict();
 const email = z.string().trim().email().max(254).transform((value) => value.toLowerCase());
 const magicLinkRequestBody = z
   .object({
@@ -138,7 +150,7 @@ export async function buildApp(
     origin: (origin, callback) =>
       callback(null, origin === undefined || env.origins.includes(origin)),
     credentials: true,
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "DELETE"],
   });
   await app.register(helmet, {
     contentSecurityPolicy: {
@@ -353,7 +365,7 @@ export async function buildApp(
   app.get("/api/v1/me", async (request) => {
     const userId = requireAuth(request);
     const [profile] = await database.db
-      .select({ id: users.id, displayName: users.displayName, email: userEmails.normalizedEmail })
+      .select({ id: users.id, displayName: users.displayName, username: users.username, email: userEmails.normalizedEmail })
       .from(users)
       .leftJoin(userEmails, eq(userEmails.userId, users.id))
       .where(eq(users.id, userId));
@@ -380,6 +392,136 @@ export async function buildApp(
         .where(eq(authSessions.tokenHash, tokenHash(raw)));
     reply.clearCookie(SESSION_COOKIE, { path: "/" });
     reply.clearCookie(CSRF_COOKIE, { path: "/" });
+    return { ok: true };
+  });
+
+  app.post("/api/v1/me/username", async (request) => {
+    const userId = requireAuth(request);
+    const { username } = usernameBody.parse(request.body);
+    try {
+      const [updated] = await database.db
+        .update(users)
+        .set({ username, updatedAt: new Date() })
+        .where(and(eq(users.id, userId), eq(users.isSynthetic, false), isNull(users.username)))
+        .returning({ id: users.id, displayName: users.displayName, username: users.username });
+      if (!updated) throw new ApiError(409, "INVALID_STATE", "Your username has already been set");
+      return { user: updated };
+    } catch (error) {
+      if (isUniqueViolation(error))
+        throw new ApiError(409, "USERNAME_UNAVAILABLE", "Username is unavailable");
+      throw error;
+    }
+  });
+
+  app.get(
+    "/api/v1/friends/search",
+    { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
+    async (request) => {
+      const userId = requireAuth(request);
+      const { username } = usernameQuery.parse(request.query);
+      const [found] = await database.db
+        .select({ id: users.id, displayName: users.displayName, username: users.username })
+        .from(users)
+        .where(and(eq(users.username, username), eq(users.isSynthetic, false)));
+      if (!found)
+        return { user: null, relationship: "none" as const };
+      const publicUser = {
+        userId: found.id,
+        displayName: found.displayName,
+        username: found.username ?? "",
+      };
+      if (found.id === userId)
+        return { user: publicUser, relationship: "self" as const };
+      const [low, high] = canonicalPair(userId, found.id);
+      const [relationship] = await database.db
+        .select()
+        .from(friendships)
+        .where(and(eq(friendships.userAId, low), eq(friendships.userBId, high)));
+      const relationshipState = relationship?.status === "accepted"
+        ? "friend"
+        : relationship?.status === "pending"
+          ? relationship.requestedByUserId === userId
+            ? "outgoing"
+            : "incoming"
+          : "none";
+      return { user: publicUser, relationship: relationshipState };
+    },
+  );
+
+  app.get("/api/v1/friends", async (request) => {
+    const userId = requireAuth(request);
+    const rows = await database.db.execute(sql`
+      select f.id, f.status, f.requested_by_user_id,
+             u.id as user_id, u.display_name, u.username
+      from friendships f
+      join users u on u.id = case when f.user_low_id=${userId} then f.user_high_id else f.user_low_id end
+      where (f.user_low_id=${userId} or f.user_high_id=${userId})
+      order by u.username nulls last, u.display_name
+    `);
+    const userSummary = (row: Record<string, unknown>) => ({
+      userId: String(row.user_id),
+      displayName: String(row.display_name),
+      username: typeof row.username === "string" ? row.username : "",
+    });
+    const requestSummary = (row: Record<string, unknown>) => ({
+      id: String(row.id),
+      user: userSummary(row),
+    });
+    return {
+      friends: rows.filter((row) => row.status === "accepted").map(userSummary),
+      incomingRequests: rows.filter((row) => row.status === "pending" && row.requested_by_user_id !== userId).map(requestSummary),
+      outgoingRequests: rows.filter((row) => row.status === "pending" && row.requested_by_user_id === userId).map(requestSummary),
+    };
+  });
+
+  app.post(
+    "/api/v1/friends/requests",
+    { config: { rateLimit: { max: 10, timeWindow: "1 hour" } } },
+    async (request, reply) => {
+      const userId = requireAuth(request);
+      const { username } = usernameBody.parse(request.body);
+      const [recipient] = await database.db.select({ id: users.id }).from(users).where(and(eq(users.username, username), eq(users.isSynthetic, false)));
+      if (!recipient || recipient.id === userId)
+        throw new ApiError(404, "NOT_FOUND", "User not found");
+      const [low, high] = canonicalPair(userId, recipient.id);
+      const relationship = await database.db.transaction(async (tx) => {
+        await tx.insert(friendships).values({ userAId: low, userBId: high, requestedByUserId: userId }).onConflictDoNothing();
+        const locked = await tx.execute(sql`select * from friendships where user_low_id=${low} and user_high_id=${high} for update`);
+        const row = locked[0] as { id: string; status: string; requested_by_user_id: string } | undefined;
+        if (!row) throw new Error("friend relationship insert failed");
+        if (row.status === "accepted") return { id: row.id, status: "accepted" };
+        if (row.status === "pending" && row.requested_by_user_id !== userId) {
+          await tx.update(friendships).set({ status: "accepted", resolvedAt: new Date() }).where(eq(friendships.id, row.id));
+          return { id: row.id, status: "accepted" };
+        }
+        if (row.status === "declined")
+          await tx.update(friendships).set({ status: "pending", requestedByUserId: userId, resolvedAt: null, createdAt: new Date() }).where(eq(friendships.id, row.id));
+        return { id: row.id, status: "pending" };
+      });
+      return reply.status(relationship.status === "accepted" ? 200 : 201).send({ ok: true });
+    },
+  );
+
+  app.post("/api/v1/friends/requests/:requestId/accept", async (request) => {
+    const userId = requireAuth(request);
+    const { requestId } = idBody.parse(request.params);
+    await resolveFriendRequest(database.db, requestId, userId, "accepted");
+    return { ok: true };
+  });
+
+  app.post("/api/v1/friends/requests/:requestId/decline", async (request) => {
+    const userId = requireAuth(request);
+    const { requestId } = idBody.parse(request.params);
+    await resolveFriendRequest(database.db, requestId, userId, "declined");
+    return { ok: true };
+  });
+
+  app.delete("/api/v1/friends/:friendUserId", async (request) => {
+    const userId = requireAuth(request);
+    const { friendUserId } = friendInviteBody.parse(request.params);
+    const [low, high] = canonicalPair(userId, friendUserId);
+    const removed = await database.db.delete(friendships).where(and(eq(friendships.userAId, low), eq(friendships.userBId, high), eq(friendships.status, "accepted"))).returning({ id: friendships.id });
+    if (removed.length === 0) throw new ApiError(404, "NOT_FOUND", "Friendship not found");
     return { ok: true };
   });
 
@@ -484,6 +626,75 @@ export async function buildApp(
   );
 
   app.post(
+    "/api/v1/games/:gameId/friend-invitations",
+    { config: { rateLimit: { max: 10, timeWindow: "1 hour" } } },
+    async (request, reply) => {
+      const userId = requireAuth(request);
+      const { gameId } = gameParam.parse(request.params);
+      const { friendUserId } = friendInviteBody.parse(request.body);
+      const player = await membership(database.db, gameId, userId);
+      if (player.seat !== 1) throw new ApiError(403, "FORBIDDEN", "Only the creator can invite");
+      const [game] = await database.db.select().from(games).where(eq(games.id, gameId));
+      if (game?.status !== "waiting_for_opponent" || game.mode !== "multiplayer")
+        throw new ApiError(409, "INVALID_STATE", "Game is not accepting invitations");
+      if (!(await areFriends(database.db, userId, friendUserId)))
+        throw new ApiError(403, "FORBIDDEN", "Only friends can receive this invitation");
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1_000);
+      const [created] = await database.db
+        .insert(friendGameInvites)
+        .values({ gameId, inviterUserId: userId, recipientUserId: friendUserId, expiresAt })
+        .onConflictDoNothing()
+        .returning();
+      if (!created) throw new ApiError(409, "INVALID_STATE", "A pending invitation already exists");
+      return reply.status(201).send({ invite: { id: created.id, gameId, friendUserId, expiresAt: expiresAt.toISOString() } });
+    },
+  );
+
+  app.get("/api/v1/friend-invitations", async (request) => {
+    const userId = requireAuth(request);
+    const rows = await database.db
+      .select({ id: friendGameInvites.id, gameId: friendGameInvites.gameId, expiresAt: friendGameInvites.expiresAt, inviterId: users.id, inviterDisplayName: users.displayName, inviterUsername: users.username })
+      .from(friendGameInvites)
+      .innerJoin(users, eq(users.id, friendGameInvites.inviterUserId))
+      .where(and(eq(friendGameInvites.recipientUserId, userId), eq(friendGameInvites.status, "pending"), gt(friendGameInvites.expiresAt, new Date())));
+    return { invitations: rows.map((row) => ({ id: row.id, gameId: row.gameId, expiresAt: row.expiresAt.toISOString(), inviter: { userId: row.inviterId, displayName: row.inviterDisplayName, username: row.inviterUsername } })) };
+  });
+
+  app.post("/api/v1/friend-invitations/:inviteId/accept", async (request) => {
+    const userId = requireAuth(request);
+    const { inviteId } = z.object({ inviteId: uuid }).strict().parse(request.params);
+    const result = await database.db.transaction(async (tx) => {
+      const locked = await tx.execute(sql`select * from friend_game_invites where id=${inviteId} for update`);
+      const invite = locked[0] as { id: string; game_id: string; inviter_user_id: string; recipient_user_id: string; status: string; expires_at: Date } | undefined;
+      if (invite?.recipient_user_id !== userId) throw new ApiError(404, "NOT_FOUND", "Invitation not found");
+      if (invite.status !== "pending" || new Date(invite.expires_at).getTime() <= Date.now()) throw new ApiError(410, "INVITATION_EXPIRED", "Invitation is no longer available");
+      if (!(await areFriends(tx, invite.inviter_user_id, userId)))
+        throw new ApiError(403, "FORBIDDEN", "This friendship is no longer active");
+      await tx.execute(sql`select id from games where id=${invite.game_id} for update`);
+      const existing = await tx.select().from(gamePlayers).where(eq(gamePlayers.gameId, invite.game_id));
+      if (existing.some((player) => player.userId === userId)) throw new ApiError(409, "INVALID_STATE", "You already joined this game");
+      if (existing.length >= 2) throw new ApiError(409, "GAME_FULL", "The game already has two players");
+      const [player] = await tx.insert(gamePlayers).values({ gameId: invite.game_id, userId, seat: 2 }).returning();
+      if (!player) throw new Error("friend invite player insert failed");
+      await tx.insert(rounds).values({ gameId: invite.game_id, gamePlayerId: player.id });
+      const now = new Date();
+      await tx.update(friendGameInvites).set({ status: "accepted", resolvedAt: now }).where(eq(friendGameInvites.id, inviteId));
+      await tx.update(friendGameInvites).set({ status: "declined", resolvedAt: now }).where(and(eq(friendGameInvites.gameId, invite.game_id), eq(friendGameInvites.status, "pending"), sql`${friendGameInvites.id} <> ${inviteId}`));
+      await tx.update(games).set({ status: "ready_check", version: sql`${games.version}+1`, updatedAt: now }).where(eq(games.id, invite.game_id));
+      return { gameId: invite.game_id };
+    });
+    return result;
+  });
+
+  app.post("/api/v1/friend-invitations/:inviteId/decline", async (request) => {
+    const userId = requireAuth(request);
+    const { inviteId } = z.object({ inviteId: uuid }).strict().parse(request.params);
+    const [declined] = await database.db.update(friendGameInvites).set({ status: "declined", resolvedAt: new Date() }).where(and(eq(friendGameInvites.id, inviteId), eq(friendGameInvites.recipientUserId, userId), eq(friendGameInvites.status, "pending"))).returning({ id: friendGameInvites.id });
+    if (!declined) throw new ApiError(404, "NOT_FOUND", "Invitation not found");
+    return { ok: true };
+  });
+
+  app.post(
     "/api/v1/invitations/join",
     { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
     async (request, reply) => {
@@ -501,6 +712,7 @@ export async function buildApp(
               expires_at: Date;
               used_at: Date | null;
               revoked_at: Date | null;
+              intended_user_id: string | null;
             }
           | undefined;
         if (
@@ -514,6 +726,8 @@ export async function buildApp(
             "INVITATION_UNAVAILABLE",
             "Invitation is invalid, expired, or already used",
           );
+        if (invitation.intended_user_id && invitation.intended_user_id !== userId)
+          throw new ApiError(403, "INVITATION_UNAUTHORIZED", "Invitation is not addressed to this user");
         await tx.execute(
           sql`select id from games where id=${invitation.game_id} for update`,
         );
@@ -1060,6 +1274,43 @@ export async function sweepExpiredGames(
     await reconcileGame(db, gameId, dictionary);
   }
   return due.length;
+}
+
+function canonicalPair(first: string, second: string): readonly [string, string] {
+  return first < second ? [first, second] : [second, first];
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "23505";
+}
+
+async function areFriends(db: Db | Tx, first: string, second: string): Promise<boolean> {
+  if (first === second) return false;
+  const [low, high] = canonicalPair(first, second);
+  const [relationship] = await db
+    .select({ id: friendships.id })
+    .from(friendships)
+    .where(and(eq(friendships.userAId, low), eq(friendships.userBId, high), eq(friendships.status, "accepted")));
+  return relationship !== undefined;
+}
+
+async function resolveFriendRequest(
+  db: Db,
+  requestId: string,
+  userId: string,
+  status: "accepted" | "declined",
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const locked = await tx.execute(sql`select * from friendships where id=${requestId} for update`);
+    const relationship = locked[0] as { id: string; user_low_id: string; user_high_id: string; requested_by_user_id: string; status: string } | undefined;
+    if (!relationship || ![relationship.user_low_id, relationship.user_high_id].includes(userId))
+      throw new ApiError(404, "NOT_FOUND", "Friend request not found");
+    if (relationship.requested_by_user_id === userId)
+      throw new ApiError(403, "FORBIDDEN", "Only the recipient can resolve this request");
+    if (relationship.status !== "pending")
+      throw new ApiError(409, "INVALID_STATE", "Friend request is no longer pending");
+    await tx.update(friendships).set({ status, resolvedAt: new Date() }).where(eq(friendships.id, requestId));
+  });
 }
 
 async function gameState(

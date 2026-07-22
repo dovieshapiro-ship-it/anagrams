@@ -39,6 +39,16 @@ export const rematchStatus = pgEnum("rematch_status", [
   "declined",
 ]);
 export const gameMode = pgEnum("game_mode", ["multiplayer", "solo"]);
+export const friendRequestStatus = pgEnum("friend_request_status", [
+  "pending",
+  "accepted",
+  "declined",
+]);
+export const friendGameInviteStatus = pgEnum("friend_game_invite_status", [
+  "pending",
+  "accepted",
+  "declined",
+]);
 
 const audit = {
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -49,12 +59,41 @@ const audit = {
     .defaultNow(),
 };
 
-export const users = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  displayName: text("display_name").notNull(),
-  isSynthetic: boolean("is_synthetic").notNull().default(false),
-  ...audit,
-});
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    displayName: text("display_name").notNull(),
+    username: text("username"),
+    isSynthetic: boolean("is_synthetic").notNull().default(false),
+    ...audit,
+  },
+  (t) => [
+    uniqueIndex("user_username_uq").on(t.username),
+    check(
+      "user_username_format",
+      sql`${t.username} is null or ${t.username} ~ '^[a-z0-9_]{3,20}$'`,
+    ),
+  ],
+);
+
+export const friendships = pgTable(
+  "friendships",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userAId: uuid("user_low_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    userBId: uuid("user_high_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    requestedByUserId: uuid("requested_by_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    status: friendRequestStatus("status").notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (t) => [
+    check("friendship_canonical_order", sql`${t.userAId} < ${t.userBId}`),
+    uniqueIndex("friendship_pair_uq").on(t.userAId, t.userBId),
+    index("friendship_user_b_idx").on(t.userBId, t.status),
+  ],
+);
 
 export const userEmails = pgTable(
   "user_emails",
@@ -251,6 +290,7 @@ export const invitations = pgTable(
     createdByPlayerId: uuid("created_by_player_id")
       .notNull()
       .references(() => gamePlayers.id),
+    intendedUserId: uuid("intended_user_id").references(() => users.id),
     tokenHash: text("token_hash").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     usedAt: timestamp("used_at", { withTimezone: true }),
@@ -263,6 +303,27 @@ export const invitations = pgTable(
   (t) => [
     uniqueIndex("invitation_token_hash_uq").on(t.tokenHash),
     index("invitation_game_idx").on(t.gameId),
+  ],
+);
+
+export const friendGameInvites = pgTable(
+  "friend_game_invites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    gameId: uuid("game_id").notNull().references(() => games.id, { onDelete: "cascade" }),
+    inviterUserId: uuid("inviter_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    recipientUserId: uuid("recipient_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    status: friendGameInviteStatus("status").notNull().default("pending"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (t) => [
+    check("friend_game_invite_not_self", sql`${t.inviterUserId} <> ${t.recipientUserId}`),
+    uniqueIndex("friend_game_invite_pending_game_recipient_uq")
+      .on(t.gameId, t.recipientUserId)
+      .where(sql`${t.status} = 'pending'`),
+    index("friend_game_invite_recipient_idx").on(t.recipientUserId, t.status, t.expiresAt),
   ],
 );
 

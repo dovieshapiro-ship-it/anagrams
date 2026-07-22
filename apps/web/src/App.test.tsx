@@ -7,6 +7,7 @@ describe("Anagrams app", () => {
     user: {
       id: "99999999-9999-4999-8999-999999999999",
       displayName: "Alice",
+      username: "alice",
       email: "alice@example.com",
       wins: 7,
     },
