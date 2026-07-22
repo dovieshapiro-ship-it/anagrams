@@ -1794,7 +1794,7 @@ input:focus-visible {
   position: absolute;
   z-index: 6;
   left: max(24px, env(safe-area-inset-left));
-  top: max(34px, env(safe-area-inset-top));
+  top: max(22px, env(safe-area-inset-top));
   bottom: auto;
   margin: 0;
   padding: 10px 0;
