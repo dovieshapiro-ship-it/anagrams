@@ -19,7 +19,7 @@ import { copyInvite } from "./invite-share";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 const api = versionedApi as typeof import("./api");
 
-type Landing = "start" | "rules" | "friends";
+type Landing = "start" | "mode" | "rules" | "multiplayer";
 type GameMode = "solo" | "friend";
 type AuthView = "welcome" | "signup" | "login" | "sent";
 
@@ -42,6 +42,7 @@ export function App(): React.JSX.Element {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [friendInviteCount, setFriendInviteCount] = useState(0);
+  const [selectedFriendId, setSelectedFriendId] = useState<string>();
   const automaticStartKey = useRef<string | undefined>(undefined);
   const sessionBootstrapStarted = useRef(false);
 
@@ -77,6 +78,7 @@ export function App(): React.JSX.Element {
     setInvitation(undefined);
     setToken(null);
     setMode("solo");
+    setSelectedFriendId(undefined);
     setLanding("start");
     setBusy(false);
     setError("");
@@ -178,7 +180,11 @@ export function App(): React.JSX.Element {
       setLanding("rules");
       replaceLocation(id);
       if (!invitationToken && mode === "friend")
-        setInvitation(await api.createInvitation(id));
+        {
+          setInvitation(await api.createInvitation(id));
+          if (selectedFriendId)
+            await api.createFriendInvitation(id, selectedFriendId);
+        }
       let next = await api.getGame(id);
       if (!invitationToken && mode === "solo") {
         if (next.me.status === "joined") {
@@ -329,17 +335,26 @@ export function App(): React.JSX.Element {
           <StartScreen
             session={session}
             error={error}
-            onSolo={() => chooseMode("solo")}
-            onFriend={() => chooseMode("friend")}
-            onFriends={() => setLanding("friends")}
-            friendInviteCount={friendInviteCount}
+            onPlay={() => setLanding("mode")}
             onLogout={() => void signOut()}
           />
         )}
-        {landing === "friends" && (
-          <FriendsScreen
+        {landing === "mode" && (
+          <GameModeScreen
+            invitationCount={friendInviteCount}
             onBack={() => setLanding("start")}
+            onSolo={() => chooseMode("solo")}
+            onMultiplayer={() => setLanding("multiplayer")}
+          />
+        )}
+        {landing === "multiplayer" && (
+          <FriendsScreen
+            onBack={() => setLanding("mode")}
             onJoin={(id) => moveTo(id)}
+            onPlayFriend={(friendUserId) => {
+              setSelectedFriendId(friendUserId);
+              chooseMode("friend");
+            }}
             onInvitationCount={setFriendInviteCount}
             username={session.username}
             onUsernameSet={(username) =>
@@ -349,7 +364,7 @@ export function App(): React.JSX.Element {
         )}
         {landing === "rules" && (
           <RulesScreen
-            onBack={() => setLanding("start")}
+            onBack={() => setLanding(mode === "friend" ? "multiplayer" : "mode")}
             onPlay={() => void beginGame()}
           />
         )}
@@ -431,10 +446,7 @@ export function App(): React.JSX.Element {
 function StartScreen(props: {
   readonly session: SessionUser;
   readonly error: string;
-  readonly onSolo: () => void;
-  readonly onFriend: () => void;
-  readonly onFriends: () => void;
-  readonly friendInviteCount: number;
+  readonly onPlay: () => void;
   readonly onLogout: () => void;
 }): React.JSX.Element {
   return (
@@ -451,19 +463,8 @@ function StartScreen(props: {
       <KiwiFruit className="start-kiwi" />
       <p className="brand-mark">KiwiGames</p>
       <div className="mode-actions">
-        <button className="table-button home-option-button" type="button" onClick={props.onSolo}>
+        <button className="table-button home-option-button" type="button" onClick={props.onPlay}>
           PLAY
-        </button>
-        <button className="table-button home-option-button" type="button" onClick={props.onFriend}>
-          INVITE A FRIEND
-        </button>
-        <button className="table-button home-option-button friends-link" type="button" onClick={props.onFriends}>
-          FRIENDS
-          {props.friendInviteCount > 0 && (
-            <span className="friend-badge" aria-label={`${String(props.friendInviteCount)} pending game invitations`}>
-              {props.friendInviteCount}
-            </span>
-          )}
         </button>
       </div>
       <p className="game-facts">
@@ -477,6 +478,29 @@ function StartScreen(props: {
           {props.error}
         </p>
       )}
+      <WalnutRail />
+    </section>
+  );
+}
+
+function GameModeScreen(props: {
+  readonly invitationCount: number;
+  readonly onBack: () => void;
+  readonly onSolo: () => void;
+  readonly onMultiplayer: () => void;
+}): React.JSX.Element {
+  return (
+    <section className="mode-screen screen" aria-labelledby="mode-title">
+      <button className="round-back" type="button" onClick={props.onBack} aria-label="Back to home">←</button>
+      <h1 id="mode-title" className="screen-title">PLAY</h1>
+      <div className="title-ornament" aria-hidden="true" />
+      <div className="mode-choice-actions">
+        <button className="table-button" type="button" onClick={props.onSolo}>SOLO</button>
+        <button className="table-button multiplayer-choice" type="button" onClick={props.onMultiplayer}>
+          MULTIPLAYER
+          {props.invitationCount > 0 && <span className="friend-badge" aria-label={`${String(props.invitationCount)} pending game invitations`}>{props.invitationCount}</span>}
+        </button>
+      </div>
       <WalnutRail />
     </section>
   );
@@ -632,6 +656,7 @@ function AuthScreen(props: {
 export function FriendsScreen(props: {
   readonly onBack: () => void;
   readonly onJoin: (gameId: string) => void;
+  readonly onPlayFriend?: (friendUserId: string) => void;
   readonly onInvitationCount?: (count: number) => void;
   readonly username?: string | null;
   readonly onUsernameSet?: (username: string) => void;
@@ -645,6 +670,7 @@ export function FriendsScreen(props: {
   const [busyId, setBusyId] = useState("");
   const [message, setMessage] = useState("");
   const [claimUsername, setClaimUsername] = useState("");
+  const [manageOpen, setManageOpen] = useState(false);
 
   const refresh = useCallback(async (): Promise<void> => {
     try {
@@ -733,22 +759,21 @@ export function FriendsScreen(props: {
   return (
     <section className="friends-screen screen" aria-labelledby="friends-title">
       <button className="round-back" type="button" onClick={props.onBack} aria-label="Back to home">←</button>
-      <h1 id="friends-title" className="screen-title">FRIENDS</h1>
+      <h1 id="friends-title" className="screen-title">MULTIPLAYER</h1>
       <div className="title-ornament" aria-hidden="true"><KiwiFruit className="ornament-kiwi" /></div>
       <div className="ivory-panel friends-sheet">
-        <form className="friend-search" onSubmit={(event) => { event.preventDefault(); void search(); }}>
-          <label className="field-label" htmlFor="friend-username">FIND BY EXACT USERNAME</label>
-          <div><input id="friend-username" className="club-input" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="off" /><button type="submit" disabled={!username.trim() || busyId === "search"}>FIND</button></div>
-        </form>
-        {searchResult?.user && (
-          <FriendRow friend={searchResult.user} detail={`@${searchResult.user.username}`} actions={
-            searchResult.relationship === "none" ? <button type="button" disabled={Boolean(busyId)} onClick={() => void run("request", () => api.sendFriendRequest(searchResult.user?.username ?? ""))}>ADD</button> : <span className="friend-state">{searchResult.relationship.toUpperCase()}</span>
-          } />
-        )}
+        <div className="multiplayer-heading"><h2>CHOOSE A FRIEND</h2><button className="add-person-button" type="button" aria-label="Find and add people" onClick={() => setManageOpen((open) => !open)}><span className="person-symbol" aria-hidden="true" /><b aria-hidden="true">+</b></button></div>
         {gameInvites.length > 0 && <FriendSection title="GAME INVITATIONS">{gameInvites.map((invite) => <FriendRow key={invite.id} friend={invite.inviter} detail="invited you to play" actions={<><button type="button" disabled={Boolean(busyId)} onClick={() => void run(invite.id, async () => props.onJoin(await api.acceptFriendGameInvitation(invite.id)))}>JOIN</button><button type="button" className="quiet-action" disabled={Boolean(busyId)} onClick={() => void run(invite.id, () => api.declineFriendGameInvitation(invite.id))}>DECLINE</button></>} />)}</FriendSection>}
-        {(data?.incomingRequests.length ?? 0) > 0 && <FriendSection title="REQUESTS">{data?.incomingRequests.map((request) => <FriendRow key={request.id} friend={request.user} detail={`@${request.user.username}`} actions={<><button type="button" disabled={Boolean(busyId)} onClick={() => void run(request.id, () => api.respondToFriendRequest(request.id, "accept"))}>ACCEPT</button><button type="button" className="quiet-action" disabled={Boolean(busyId)} onClick={() => void run(request.id, () => api.respondToFriendRequest(request.id, "decline"))}>DECLINE</button></>} />)}</FriendSection>}
-        <FriendSection title="YOUR FRIENDS">{data?.friends.length ? data.friends.map((friend) => <FriendRow key={friend.userId} friend={friend} detail={`@${friend.username}`} actions={<button type="button" className="quiet-action" disabled={Boolean(busyId)} onClick={() => void run(friend.userId, () => api.removeFriend(friend.userId))}>REMOVE</button>} />) : <p className="empty-friends">Your club table is waiting for friends.</p>}</FriendSection>
-        {(data?.outgoingRequests.length ?? 0) > 0 && <FriendSection title="SENT">{data?.outgoingRequests.map((request) => <FriendRow key={request.id} friend={request.user} detail="Request pending" actions={<span className="friend-state">PENDING</span>} />)}</FriendSection>}
+        <FriendSection title="YOUR FRIENDS">{data?.friends.length ? data.friends.map((friend) => <FriendRow key={friend.userId} friend={friend} detail={`@${friend.username}`} actions={<button type="button" disabled={Boolean(busyId)} onClick={() => props.onPlayFriend?.(friend.userId)}>PLAY</button>} />) : <p className="empty-friends">Add a friend to start a multiplayer game.</p>}</FriendSection>
+        {manageOpen && <div className="friend-manager">
+          <form className="friend-search" onSubmit={(event) => { event.preventDefault(); void search(); }}>
+            <label className="field-label" htmlFor="friend-username">FIND BY EXACT USERNAME</label>
+            <div><input id="friend-username" className="club-input" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="off" /><button type="submit" disabled={!username.trim() || busyId === "search"}>FIND</button></div>
+          </form>
+          {searchResult?.user && <FriendRow friend={searchResult.user} detail={`@${searchResult.user.username}`} actions={searchResult.relationship === "none" ? <button type="button" disabled={Boolean(busyId)} onClick={() => void run("request", () => api.sendFriendRequest(searchResult.user?.username ?? ""))}>ADD</button> : <span className="friend-state">{searchResult.relationship.toUpperCase()}</span>} />}
+          {(data?.incomingRequests.length ?? 0) > 0 && <FriendSection title="REQUESTS">{data?.incomingRequests.map((request) => <FriendRow key={request.id} friend={request.user} detail={`@${request.user.username}`} actions={<><button type="button" disabled={Boolean(busyId)} onClick={() => void run(request.id, () => api.respondToFriendRequest(request.id, "accept"))}>ACCEPT</button><button type="button" className="quiet-action" disabled={Boolean(busyId)} onClick={() => void run(request.id, () => api.respondToFriendRequest(request.id, "decline"))}>DECLINE</button></>} />)}</FriendSection>}
+          {(data?.outgoingRequests.length ?? 0) > 0 && <FriendSection title="SENT">{data?.outgoingRequests.map((request) => <FriendRow key={request.id} friend={request.user} detail="Request pending" actions={<span className="friend-state">PENDING</span>} />)}</FriendSection>}
+        </div>}
         {message && <p className="friend-message" role="status">{message}</p>}
       </div>
       <WalnutRail />

@@ -32,6 +32,7 @@ describe("friends screen", () => {
     render(<FriendsScreen onBack={() => undefined} onJoin={() => undefined} />);
 
     expect(await screen.findByRole("heading", { name: "GAME INVITATIONS" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Find and add people" }));
     expect(screen.getByRole("heading", { name: "REQUESTS" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "YOUR FRIENDS" })).toBeVisible();
     expect(screen.getAllByText("Alice")).toHaveLength(2);
@@ -47,6 +48,7 @@ describe("friends screen", () => {
     const send = vi.spyOn(api, "sendFriendRequest").mockResolvedValue();
 
     render(<FriendsScreen onBack={() => undefined} onJoin={() => undefined} />);
+    fireEvent.click(screen.getByRole("button", { name: "Find and add people" }));
     fireEvent.change(screen.getByLabelText("FIND BY EXACT USERNAME"), {
       target: { value: "  bob  " },
     });

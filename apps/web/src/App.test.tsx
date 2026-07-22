@@ -35,6 +35,7 @@ describe("Anagrams app", () => {
   it("moves from the title to the approved rules board", async () => {
     render(<App />);
     fireEvent.click(await screen.findByRole("button", { name: /^play$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^solo$/i }));
     expect(screen.getByRole("heading", { name: /how to play/i })).toBeVisible();
     expect(screen.getByText(/6 = 2000/)).toBeVisible();
   });
@@ -264,6 +265,7 @@ describe("Anagrams app", () => {
     await screen.findByRole("heading", { name: /round results/i });
     fireEvent.click(screen.getByRole("button", { name: /^exit$/i }));
     fireEvent.click(screen.getByRole("button", { name: /^play$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^solo$/i }));
     fireEvent.click(screen.getByRole("button", { name: /start round/i }));
 
     await waitFor(() =>

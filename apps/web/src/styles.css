@@ -1019,6 +1019,92 @@ input:focus-visible {
   border: 4px double #d39b22;
   text-decoration: none;
 }
+
+.mode-screen {
+  justify-content: center;
+}
+
+.mode-choice-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+  margin-top: 70px;
+}
+
+.mode-choice-actions .table-button {
+  position: relative;
+  min-height: 58px;
+  min-width: min(72vw, 270px);
+  margin: 0;
+  padding: 12px 24px;
+  font-size: clamp(0.88rem, 3.5vw, 1.06rem);
+}
+
+.multiplayer-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgb(117 85 31 / 35%);
+}
+
+.multiplayer-heading h2 {
+  margin: 0;
+  color: #5d421d;
+  font-size: 0.78rem;
+  letter-spacing: 0.11em;
+}
+
+.add-person-button {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  flex: 0 0 auto;
+  color: #f4e8c9;
+  background: #8b2429;
+  border: 2px solid #c89327;
+  border-radius: 50%;
+  box-shadow: 0 4px 8px rgb(35 20 10 / 28%);
+  font: 700 1.3rem Georgia, serif;
+}
+
+.add-person-button b {
+  position: absolute;
+  right: 5px;
+  top: 1px;
+  font: 700 0.86rem Arial, sans-serif;
+}
+
+.person-symbol::before {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 9px;
+  width: 8px;
+  height: 8px;
+  background: #f4e8c9;
+  border-radius: 50%;
+}
+
+.person-symbol::after {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 19px;
+  width: 16px;
+  height: 10px;
+  border: 2px solid #f4e8c9;
+  border-radius: 10px 10px 4px 4px;
+}
+
+.friend-manager {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgb(117 85 31 / 35%);
+}
 .start-error {
   position: absolute;
   bottom: 76px;
@@ -1934,7 +2020,7 @@ input:focus-visible {
   min-height: 40px;
   padding: 7px 10px;
   color: #f3d98f;
-  background: #173d2e;
+  background: linear-gradient(#8c2e2d, #762024);
   border: 1px solid #ad7e23;
   border-radius: 18px;
   font: 700 0.66rem Georgia, serif;
@@ -1992,9 +2078,9 @@ input:focus-visible {
   gap: 4px;
 }
 .friend-actions .quiet-action {
-  color: #6b1d20;
-  background: transparent;
-  border-color: rgba(107, 29, 32, 0.45);
+  color: #f4e8c9;
+  background: #762024;
+  border-color: #ad7e23;
 }
 .friend-state,
 .empty-friends,
