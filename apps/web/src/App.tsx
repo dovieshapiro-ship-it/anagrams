@@ -223,6 +223,24 @@ export function App(): React.JSX.Element {
     }
   }
 
+  async function exitCurrentGame(): Promise<void> {
+    if (!gameId || !state) {
+      await returnHome();
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      if (state.me.round?.status === "active")
+        await api.finishRound(gameId, state.game.version);
+      await returnHome();
+    } catch (caught) {
+      setError(messageOf(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (session === undefined)
     return (
       <main className="game-table">
@@ -344,6 +362,7 @@ export function App(): React.JSX.Element {
           onFinish={() =>
             void act(() => api.finishRound(gameId, state.game.version))
           }
+          onExit={() => void exitCurrentGame()}
         />
       </main>
     );
@@ -365,6 +384,7 @@ export function App(): React.JSX.Element {
         onStart={() =>
           void act(() => api.startRound(gameId, state.game.version))
         }
+        onExit={() => void exitCurrentGame()}
       />
     </main>
   );
@@ -569,6 +589,7 @@ function WaitingScreen(props: {
   readonly onInvite: () => Promise<WireCreateInvitationResponse | undefined>;
   readonly onReady: () => void;
   readonly onStart: () => void;
+  readonly onExit: () => void;
 }): React.JSX.Element {
   const [shareStatus, setShareStatus] = useState("");
   const copyToastTimer = useRef<number | undefined>(undefined);
@@ -612,6 +633,14 @@ function WaitingScreen(props: {
           className="ivory-panel compact-panel modal-panel"
           aria-label="Game setup"
         >
+          <button
+            className="round-back modal-exit"
+            type="button"
+            onClick={props.onExit}
+            aria-label="Exit to home"
+          >
+            ←
+          </button>
           {waitingOpponent ? (
             <>
               <button
@@ -697,6 +726,7 @@ export function PlayScreen(props: {
   readonly error: string;
   readonly onSubmit: (word: string) => Promise<WireSubmitWordResponse>;
   readonly onFinish: () => void;
+  readonly onExit: () => void;
 }): React.JSX.Element {
   const [feedback, setFeedback] = useState("");
   const originalRack = Array.from(props.state.game.rack ?? "");
@@ -791,6 +821,15 @@ export function PlayScreen(props: {
       <h1 id="play-title" className="sr-only">
         Anagrams round
       </h1>
+      <button
+        className="round-back play-exit"
+        type="button"
+        onClick={props.onExit}
+        disabled={props.busy}
+        aria-label="Finish round and exit to home"
+      >
+        ←
+      </button>
       <div className="play-topbar">
         <button
           className="round-shuffle"

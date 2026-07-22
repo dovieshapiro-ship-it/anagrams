@@ -1360,9 +1360,24 @@ input:focus-visible {
   top: 3px;
   right: 5px;
 }
+.modal-panel .modal-exit {
+  top: 16px;
+  left: 16px;
+  width: 44px;
+  height: 44px;
+  font-size: 1.5rem;
+}
 .play-screen {
   justify-content: flex-start;
   padding-top: 30px;
+}
+.play-screen > .play-exit {
+  top: 30px;
+  left: 28px;
+}
+.play-screen .round-shuffle {
+  right: 0;
+  left: auto;
 }
 .play-topbar {
   position: relative;

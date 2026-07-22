@@ -64,6 +64,7 @@ function setup(onSubmit = vi.fn().mockResolvedValue(response(true))): void {
       error=""
       onSubmit={onSubmit}
       onFinish={vi.fn()}
+      onExit={vi.fn()}
     />,
   );
 }
