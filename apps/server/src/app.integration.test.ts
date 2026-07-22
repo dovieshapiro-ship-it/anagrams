@@ -301,6 +301,44 @@ describe("two-player API integration", () => {
     expect(count[0]?.count).toBe(2);
   });
 
+  it("merges crossed friend invitations into one shared waiting room", async () => {
+    if (app === undefined || database === undefined)
+      throw new Error("Test setup did not complete");
+    const alice = await createSession("Alice");
+    const bob = await createSession("Bob");
+    await post("/api/v1/me/username", alice, { username: "alice_cross" });
+    await post("/api/v1/me/username", bob, { username: "bob_cross" });
+    await post("/api/v1/friends/requests", alice, { username: "bob_cross" });
+    const bobFriends = await app.inject({
+      method: "GET",
+      url: "/api/v1/friends",
+      headers: { cookie: bob.cookie },
+    });
+    const requestId = bobFriends.json<{ incomingRequests: { id: string }[] }>()
+      .incomingRequests[0]?.id;
+    if (!requestId) throw new Error("Expected a friend request");
+    await post(`/api/v1/friends/requests/${requestId}/accept`, bob, {});
+
+    const aliceGame = (await post("/api/v1/games", alice, {})).json<{ gameId: string }>().gameId;
+    await post(`/api/v1/games/${aliceGame}/friend-invitations`, alice, {
+      friendUserId: bob.userId,
+    });
+    const bobGame = (await post("/api/v1/games", bob, {})).json<{ gameId: string }>().gameId;
+    const crossed = await post(`/api/v1/games/${bobGame}/friend-invitations`, bob, {
+      friendUserId: alice.userId,
+    });
+    expect(crossed.statusCode).toBe(201);
+    expect(crossed.json<{ invite: { gameId: string } }>().invite.gameId).toBe(aliceGame);
+    const sharedPlayers = await database.sqlClient<{ count: number }[]>`
+      select count(*)::int as count from game_players where game_id=${aliceGame}
+    `;
+    expect(sharedPlayers[0]?.count).toBe(2);
+    const discardedGames = await database.sqlClient<{ count: number }[]>`
+      select count(*)::int as count from games where id=${bobGame}
+    `;
+    expect(discardedGames[0]?.count).toBe(0);
+  });
+
   it("allows exactly one concurrent invitation redemption and hides the game from the loser", async () => {
     if (app === undefined || database === undefined)
       throw new Error("Test setup did not complete");

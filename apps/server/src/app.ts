@@ -732,13 +732,72 @@ export async function buildApp(
       if (!(await areFriends(database.db, userId, friendUserId)))
         throw new ApiError(403, "FORBIDDEN", "Only friends can receive this invitation");
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1_000);
-      const [created] = await database.db
-        .insert(friendGameInvites)
-        .values({ gameId, inviterUserId: userId, recipientUserId: friendUserId, expiresAt })
-        .onConflictDoNothing()
-        .returning();
-      if (!created) throw new ApiError(409, "INVALID_STATE", "A pending invitation already exists");
-      return reply.status(201).send({ invite: { id: created.id, gameId, friendUserId, expiresAt: expiresAt.toISOString() } });
+      const created = await database.db.transaction(async (tx) => {
+        const [lowUserId, highUserId] = [userId, friendUserId].sort();
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtext(${lowUserId}), hashtext(${highUserId}))`,
+        );
+        const inverseRows = await tx.execute(sql`
+          select * from friend_game_invites
+          where inviter_user_id=${friendUserId}
+            and recipient_user_id=${userId}
+            and status='pending'
+            and expires_at > now()
+          order by created_at desc
+          limit 1
+          for update
+        `);
+        const inverse = inverseRows[0] as
+          | { id: string; game_id: string; expires_at: Date }
+          | undefined;
+        if (inverse) {
+          await tx.execute(sql`select id from games where id=${inverse.game_id} for update`);
+          const existing = await tx
+            .select()
+            .from(gamePlayers)
+            .where(eq(gamePlayers.gameId, inverse.game_id));
+          if (!existing.some((entry) => entry.userId === userId) && existing.length < 2) {
+            const [joined] = await tx
+              .insert(gamePlayers)
+              .values({ gameId: inverse.game_id, userId, seat: 2 })
+              .returning();
+            if (!joined) throw new Error("crossed invitation join failed");
+            await tx.insert(rounds).values({ gameId: inverse.game_id, gamePlayerId: joined.id });
+            const now = new Date();
+            await tx
+              .update(friendGameInvites)
+              .set({ status: "accepted", resolvedAt: now })
+              .where(eq(friendGameInvites.id, inverse.id));
+            await tx
+              .update(games)
+              .set({ status: "ready_check", version: sql`${games.version}+1`, updatedAt: now })
+              .where(eq(games.id, inverse.game_id));
+            if (gameId !== inverse.game_id)
+              await tx.delete(games).where(eq(games.id, gameId));
+            return {
+              id: inverse.id,
+              gameId: inverse.game_id,
+              expiresAt: new Date(inverse.expires_at),
+            };
+          }
+        }
+        const [invitation] = await tx
+          .insert(friendGameInvites)
+          .values({ gameId, inviterUserId: userId, recipientUserId: friendUserId, expiresAt })
+          .onConflictDoNothing()
+          .returning();
+        if (!invitation)
+          throw new ApiError(409, "INVALID_STATE", "A pending invitation already exists");
+        return invitation;
+      });
+      return reply.status(201).send({
+        invite: {
+          id: created.id,
+          gameId: created.gameId,
+          friendUserId,
+          expiresAt: created.expiresAt.toISOString(),
+        },
+      });
     },
   );
 
@@ -913,24 +972,24 @@ export async function buildApp(
           "STALE_STATE",
           "Game state changed; reload and retry",
         );
-      const player = await membership(tx, gameId, userId);
-      await tx
-        .update(gamePlayers)
-        .set({ status: "ready", readyAt: new Date() })
-        .where(eq(gamePlayers.id, player.id));
+      await membership(tx, gameId, userId);
       const members = await tx
         .select()
         .from(gamePlayers)
         .where(eq(gamePlayers.gameId, gameId));
-      const allReady =
-        members.length === 2 &&
-        members.every((p) => p.id === player.id || p.status === "ready");
+      if (members.length !== 2)
+        throw new ApiError(409, "INVALID_STATE", "The opponent has not joined yet");
+      const readyAt = new Date();
+      await tx
+        .update(gamePlayers)
+        .set({ status: "ready", readyAt })
+        .where(eq(gamePlayers.gameId, gameId));
       await tx
         .update(games)
         .set({
-          status: allReady ? "in_progress" : "ready_check",
+          status: "in_progress",
           version: sql`${games.version}+1`,
-          updatedAt: new Date(),
+          updatedAt: readyAt,
         })
         .where(eq(games.id, gameId));
     });

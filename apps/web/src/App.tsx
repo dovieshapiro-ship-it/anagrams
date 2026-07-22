@@ -227,18 +227,19 @@ export function App(): React.JSX.Element {
     setError("");
     try {
       const id = await api.createGame();
-      const [shareInvitation] = await Promise.all([
-        api.createInvitation(id),
-        api.createFriendInvitation(id, friendUserId),
-      ]);
+      const match = await api.createFriendInvitation(id, friendUserId);
+      const matchedGameId = match.invite.gameId;
+      const shareInvitation = matchedGameId === id
+        ? await api.createInvitation(id)
+        : undefined;
       setMode("friend");
       setSelectedFriendId(friendUserId);
-      window.sessionStorage.setItem(`anagrams:invited-friend:${id}`, friendUserId);
+      window.sessionStorage.setItem(`anagrams:invited-friend:${matchedGameId}`, friendUserId);
       setInvitation(shareInvitation);
-      setGameId(id);
+      setGameId(matchedGameId);
       setLanding("rules");
-      replaceLocation(id);
-      setState(await api.getGame(id));
+      replaceLocation(matchedGameId);
+      setState(await api.getGame(matchedGameId));
     } catch (caught) {
       setError(messageOf(caught));
       throw caught;
@@ -884,8 +885,7 @@ function WaitingScreen(props: {
     props.state.game.status === "in_progress" &&
     props.state.me.round?.status === "not_started";
   const needsReady =
-    !props.state.me.status.includes("ready") &&
-    props.state.me.status === "joined";
+    Boolean(props.state.opponent) && props.state.game.status === "ready_check";
   const invitedFriend = props.invitedFriendId
     ? friends.find((friend) => friend.userId === props.invitedFriendId)
     : outgoingFriend ?? undefined;
