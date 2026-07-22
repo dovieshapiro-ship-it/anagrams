@@ -441,7 +441,7 @@ function RulesScreen(props: {
   return (
     <section className="rules-screen screen" aria-labelledby="rules-title">
       <button
-        className="round-back"
+        className="round-back game-exit"
         type="button"
         onClick={props.onBack}
         aria-label="Back to title"
@@ -634,7 +634,7 @@ function WaitingScreen(props: {
           aria-label="Game setup"
         >
           <button
-            className="round-back modal-exit"
+            className="round-back game-exit modal-exit"
             type="button"
             onClick={props.onExit}
             aria-label="Exit to home"
@@ -822,7 +822,7 @@ export function PlayScreen(props: {
         Anagrams round
       </h1>
       <button
-        className="round-back play-exit"
+        className="round-back game-exit play-exit"
         type="button"
         onClick={props.onExit}
         disabled={props.busy}

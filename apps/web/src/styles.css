@@ -1361,17 +1361,24 @@ input:focus-visible {
   right: 5px;
 }
 .modal-panel .modal-exit {
+  z-index: 50;
   top: 16px;
   left: 16px;
   width: 44px;
   height: 44px;
   font-size: 1.5rem;
 }
+.screen > .game-exit {
+  z-index: 50;
+  visibility: visible;
+  opacity: 1;
+}
 .play-screen {
   justify-content: flex-start;
   padding-top: 30px;
 }
 .play-screen > .play-exit {
+  position: absolute;
   top: 30px;
   left: 28px;
 }
