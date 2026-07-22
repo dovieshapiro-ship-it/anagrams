@@ -451,24 +451,24 @@ function StartScreen(props: {
       <KiwiFruit className="start-kiwi" />
       <p className="brand-mark">KiwiGames</p>
       <div className="mode-actions">
-        <button className="table-button" type="button" onClick={props.onSolo}>
-          SOLO PLAY
+        <button className="table-button home-option-button" type="button" onClick={props.onSolo}>
+          PLAY
         </button>
-        <button className="table-button" type="button" onClick={props.onFriend}>
+        <button className="table-button home-option-button" type="button" onClick={props.onFriend}>
           INVITE A FRIEND
+        </button>
+        <button className="table-button home-option-button friends-link" type="button" onClick={props.onFriends}>
+          FRIENDS
+          {props.friendInviteCount > 0 && (
+            <span className="friend-badge" aria-label={`${String(props.friendInviteCount)} pending game invitations`}>
+              {props.friendInviteCount}
+            </span>
+          )}
         </button>
       </div>
       <p className="game-facts">
         60 SECONDS <span aria-hidden="true">•</span> 6 LETTERS
       </p>
-      <button className="friends-link" type="button" onClick={props.onFriends}>
-        FRIENDS
-        {props.friendInviteCount > 0 && (
-          <span className="friend-badge" aria-label={`${String(props.friendInviteCount)} pending game invitations`}>
-            {props.friendInviteCount}
-          </span>
-        )}
-      </button>
       <button className="logout-link" type="button" onClick={props.onLogout}>
         LOG OUT
       </button>

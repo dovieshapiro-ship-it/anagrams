@@ -999,6 +999,26 @@ input:focus-visible {
   min-width: 285px;
   font-size: 1.22rem;
 }
+
+.start-screen:not(.auth-screen) .mode-actions {
+  gap: 14px;
+}
+
+.start-screen:not(.auth-screen) .mode-actions .home-option-button {
+  min-height: 54px;
+  min-width: min(68vw, 250px);
+  padding: 10px 20px;
+  font-size: clamp(0.8rem, 3.2vw, 1rem);
+}
+
+.start-screen:not(.auth-screen) .mode-actions .friends-link {
+  position: relative;
+  inset: auto;
+  margin: 0;
+  color: #f4e8c9;
+  border: 4px double #d39b22;
+  text-decoration: none;
+}
 .start-error {
   position: absolute;
   bottom: 76px;
