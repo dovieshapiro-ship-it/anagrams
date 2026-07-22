@@ -13,7 +13,7 @@ import type {
   SessionUser,
 } from "./api";
 // @ts-expect-error Vite supports query-string imports used to invalidate tunnel caches.
-import * as versionedApi from "./api.ts?v=friends-13";
+import * as versionedApi from "./api.ts?v=password-auth-19";
 import { copyInvite } from "./invite-share";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -21,14 +21,13 @@ const api = versionedApi as typeof import("./api");
 
 type Landing = "start" | "mode" | "rules" | "multiplayer" | "friends";
 type GameMode = "solo" | "friend";
-type AuthView = "welcome" | "signup" | "login" | "sent";
+type AuthView = "welcome" | "signup" | "login";
 
 export function App(): React.JSX.Element {
   const initial = new URL(window.location.href);
   const magicToken = new URLSearchParams(window.location.hash.slice(1)).get("magic");
   const [session, setSession] = useState<SessionUser | null>();
   const [authView, setAuthView] = useState<AuthView>("welcome");
-  const [developmentMagicLink, setDevelopmentMagicLink] = useState("");
   const [landing, setLanding] = useState<Landing>(
     initial.searchParams.has("token") ? "rules" : "start",
   );
@@ -204,22 +203,19 @@ export function App(): React.JSX.Element {
     }
   }
 
-  async function sendMagicLink(
-    email: string,
-    displayName?: string,
-    username?: string,
+  async function authenticatePassword(
+    signup: boolean,
+    displayName: string,
+    username: string,
+    password: string,
   ): Promise<void> {
     setBusy(true);
     setError("");
     try {
-      const result = await api.requestMagicLink({
-        email,
-        ...(displayName ? { displayName } : {}),
-        ...(username ? { username } : {}),
-        continuePath: `${window.location.pathname}${window.location.search}`,
-      });
-      setDevelopmentMagicLink(result.developmentMagicLink ?? "");
-      setAuthView("sent");
+      if (signup) await api.signupWithPassword({ displayName, username, password });
+      else await api.loginWithPassword(username, password);
+      setSession(await api.getMe());
+      setAuthView("welcome");
     } catch (caught) {
       setError(messageOf(caught));
     } finally {
@@ -282,9 +278,8 @@ export function App(): React.JSX.Element {
           view={authView}
           busy={busy}
           error={error}
-          developmentMagicLink={developmentMagicLink}
           onView={setAuthView}
-          onSubmit={(email, name, username) => void sendMagicLink(email, name, username)}
+          onSubmit={(signup, name, username, password) => void authenticatePassword(signup, name, username, password)}
         />
       </main>
     );
@@ -595,13 +590,12 @@ function AuthScreen(props: {
   readonly view: AuthView;
   readonly busy: boolean;
   readonly error: string;
-  readonly developmentMagicLink: string;
   readonly onView: (view: AuthView) => void;
-  readonly onSubmit: (email: string, displayName?: string, username?: string) => void;
+  readonly onSubmit: (signup: boolean, displayName: string, username: string, password: string) => void;
 }): React.JSX.Element {
-  const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   if (props.view === "welcome")
     return (
       <section className="auth-screen start-screen screen" aria-labelledby="welcome-title">
@@ -620,23 +614,6 @@ function AuthScreen(props: {
         <WalnutRail />
       </section>
     );
-  if (props.view === "sent")
-    return (
-      <section className="auth-screen auth-sent-screen screen" aria-labelledby="email-title">
-        <h1 id="email-title" className="screen-title">CHECK YOUR EMAIL</h1>
-        <div className="title-ornament" aria-hidden="true" />
-        <div className="ivory-panel auth-sheet">
-          <span className="auth-seal" aria-hidden="true">✉</span>
-          <p>We sent a secure sign-in link to <strong>{email}</strong>.</p>
-          <p className="auth-note">The link expires in 15 minutes.</p>
-          {props.developmentMagicLink && (
-            <a className="table-button development-link" href={props.developmentMagicLink}>OPEN TEST SIGN-IN LINK</a>
-          )}
-          <button className="text-link" type="button" onClick={() => props.onView("login")}>USE A DIFFERENT EMAIL</button>
-        </div>
-        <WalnutRail />
-      </section>
-    );
   const signup = props.view === "signup";
   return (
     <section className="auth-screen screen" aria-labelledby="auth-title">
@@ -646,19 +623,22 @@ function AuthScreen(props: {
         className="ivory-panel auth-sheet"
         onSubmit={(event) => {
           event.preventDefault();
-          props.onSubmit(email, signup ? name : undefined, signup ? username : undefined);
+          props.onSubmit(signup, signup ? name : "", username, password);
         }}
       >
         {signup && <><label className="field-label" htmlFor="signup-name">YOUR FIRST NAME</label><input className="club-input" id="signup-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={40} autoComplete="nickname" /></>}
-        {signup && <><label className="field-label" htmlFor="signup-username">USERNAME</label><input className="club-input" id="signup-username" value={username} onChange={(event) => setUsername(event.target.value.toLowerCase().replace(/[^a-z0-9_]/gu, ""))} minLength={3} maxLength={20} autoComplete="username" /><small>3–20 letters, numbers, or underscores</small></>}
-        <label className="field-label" htmlFor="account-email">EMAIL</label>
-        <input className="club-input" id="account-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} maxLength={254} autoComplete="email" autoFocus />
+        <label className="field-label" htmlFor="account-username">USERNAME</label>
+        <input className="club-input" id="account-username" value={username} onChange={(event) => setUsername(event.target.value.toLowerCase().replace(/[^a-z0-9_]/gu, ""))} minLength={3} maxLength={20} autoComplete="username" autoFocus />
+        {signup && <small>3–20 letters, numbers, or underscores</small>}
+        <label className="field-label" htmlFor="account-password">PASSWORD</label>
+        <input className="club-input" id="account-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} maxLength={128} autoComplete={signup ? "new-password" : "current-password"} />
+        {signup && <small>At least 8 characters</small>}
         <button
           className="table-button"
           type="submit"
-          disabled={props.busy || !email.trim() || (signup && (!name.trim() || username.length < 3))}
+          disabled={props.busy || username.length < 3 || password.length < 8 || (signup && !name.trim())}
         >
-          {props.busy ? "PLEASE WAIT…" : signup ? "CREATE ACCOUNT" : "EMAIL ME A MAGIC LINK"}
+          {props.busy ? "PLEASE WAIT…" : signup ? "CREATE ACCOUNT" : "LOG IN"}
         </button>
         <StatusMessage error={props.error} />
         <button className="text-link" type="button" onClick={() => props.onView(signup ? "login" : "signup")}>{signup ? "ALREADY A MEMBER? LOG IN" : "NEW HERE? CREATE ACCOUNT"}</button>

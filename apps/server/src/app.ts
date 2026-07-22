@@ -1,4 +1,5 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
@@ -33,6 +34,7 @@ import {
   games,
   invitations,
   magicLinkChallenges,
+  passwordCredentials,
   rematchRequests,
   rounds,
   users,
@@ -88,6 +90,29 @@ const magicLinkRequestBody = z
   })
   .strict();
 const magicLinkConsumeBody = z.object({ token: z.string().min(20).max(256) }).strict();
+const password = z.string().min(8).max(128);
+const passwordSignupBody = z.object({
+  displayName: z.string().trim().min(1).max(40),
+  username: usernameSchema,
+  password,
+}).strict();
+const passwordLoginBody = z.object({ username: usernameSchema, password }).strict();
+
+const scrypt = promisify(nodeScrypt);
+
+async function hashPassword(value: string): Promise<string> {
+  const salt = randomBytes(16);
+  const derived = await scrypt(value, salt, 64) as Buffer;
+  return `scrypt$${salt.toString("base64url")}$${derived.toString("base64url")}`;
+}
+
+async function verifyPassword(value: string, stored: string): Promise<boolean> {
+  const [algorithm, saltText, hashText] = stored.split("$");
+  if (algorithm !== "scrypt" || !saltText || !hashText) return false;
+  const expected = Buffer.from(hashText, "base64url");
+  const actual = await scrypt(value, Buffer.from(saltText, "base64url"), expected.length) as Buffer;
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
 
 type Db = DatabaseHandle["db"];
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -191,6 +216,8 @@ export async function buildApp(
     if (
       !["POST", "PUT", "PATCH", "DELETE"].includes(request.method) ||
       request.url === "/api/v1/dev/sessions" ||
+      request.url === "/api/v1/auth/password/signup" ||
+      request.url === "/api/v1/auth/password/login" ||
       request.url === "/api/v1/auth/magic-links" ||
       request.url === "/api/v1/auth/magic-links/consume"
     )
@@ -216,6 +243,47 @@ export async function buildApp(
     } catch {
       return reply.status(503).send({ status: "not_ready", checks: { database: "down" } });
     }
+  });
+
+  async function issuePasswordSession(userId: string, reply: FastifyReply): Promise<void> {
+    const sessionToken = opaqueToken();
+    const csrfToken = opaqueToken();
+    const expiresAt = new Date(Date.now() + env.SESSION_TTL_HOURS * 3_600_000);
+    await database.db.insert(authSessions).values({
+      userId,
+      tokenHash: tokenHash(sessionToken),
+      csrfHash: tokenHash(csrfToken),
+      expiresAt,
+    });
+    setSessionCookies(reply, env, sessionToken, csrfToken, expiresAt);
+  }
+
+  app.post("/api/v1/auth/password/signup", { config: { rateLimit: { max: 20, timeWindow: "1 hour" } } }, async (request, reply) => {
+    const body = passwordSignupBody.parse(request.body);
+    const [existing] = await database.db.select({ id: users.id }).from(users).where(eq(users.username, body.username));
+    if (existing) throw new ApiError(409, "USERNAME_UNAVAILABLE", "That username is already taken");
+    const passwordHash = await hashPassword(body.password);
+    const account = await database.db.transaction(async (tx) => {
+      const [created] = await tx.insert(users).values({ displayName: body.displayName, username: body.username }).returning();
+      if (!created) throw new Error("account creation failed");
+      await tx.insert(passwordCredentials).values({ userId: created.id, passwordHash });
+      return created;
+    });
+    await issuePasswordSession(account.id, reply);
+    return reply.status(201).send({ user: { id: account.id, displayName: account.displayName, username: account.username } });
+  });
+
+  app.post("/api/v1/auth/password/login", { config: { rateLimit: { max: 20, timeWindow: "15 minutes" } } }, async (request, reply) => {
+    const body = passwordLoginBody.parse(request.body);
+    const [account] = await database.db
+      .select({ id: users.id, displayName: users.displayName, username: users.username, passwordHash: passwordCredentials.passwordHash })
+      .from(users)
+      .innerJoin(passwordCredentials, eq(passwordCredentials.userId, users.id))
+      .where(eq(users.username, body.username));
+    if (!account || !(await verifyPassword(body.password, account.passwordHash)))
+      throw new ApiError(401, "UNAUTHENTICATED", "Username or password is incorrect");
+    await issuePasswordSession(account.id, reply);
+    return { user: { id: account.id, displayName: account.displayName, username: account.username } };
   });
 
   app.post(
