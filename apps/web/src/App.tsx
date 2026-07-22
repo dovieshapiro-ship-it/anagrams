@@ -449,15 +449,14 @@ function StartScreen(props: {
   readonly onPlay: () => void;
   readonly onLogout: () => void;
 }): React.JSX.Element {
+  const [accountOpen, setAccountOpen] = useState(false);
   return (
     <section className="start-screen screen" aria-labelledby="start-title">
       <h1 id="start-title">ANAGRAMS</h1>
       <div className="home-account">
         <span className="welcome-name">WELCOME, {props.session.displayName.toUpperCase()}</span>
-        <span className="trophy-stat" aria-label={`${String(props.session.wins)} multiplayer wins`}>
-          <span className="trophy-icon" aria-hidden="true" />
-          <strong>{props.session.wins}</strong>
-        </span>
+        <button className="account-person-button" type="button" aria-label="Open player profile" aria-expanded={accountOpen} onClick={() => setAccountOpen((open) => !open)}><span className="person-symbol" aria-hidden="true" /></button>
+        {accountOpen && <div className="account-popover" role="dialog" aria-label="Player profile"><strong>{props.session.displayName}</strong><span>@{props.session.username ?? "choose_username"}</span><span>{props.session.wins} {props.session.wins === 1 ? "WIN" : "WINS"}</span></div>}
       </div>
       <div className="title-ornament start-ornament" aria-hidden="true" />
       <KiwiFruit className="start-kiwi" />
@@ -767,7 +766,7 @@ export function FriendsScreen(props: {
         <FriendSection title="YOUR FRIENDS">{data?.friends.length ? data.friends.map((friend) => <FriendRow key={friend.userId} friend={friend} detail={`@${friend.username}`} actions={<button type="button" disabled={Boolean(busyId)} onClick={() => props.onPlayFriend?.(friend.userId)}>PLAY</button>} />) : <p className="empty-friends">Add a friend to start a multiplayer game.</p>}</FriendSection>
         {manageOpen && <div className="friend-manager">
           <form className="friend-search" onSubmit={(event) => { event.preventDefault(); void search(); }}>
-            <label className="field-label" htmlFor="friend-username">FIND BY EXACT USERNAME</label>
+            <label className="field-label" htmlFor="friend-username">FIND BY USERNAME</label>
             <div><input id="friend-username" className="club-input" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="off" /><button type="submit" disabled={!username.trim() || busyId === "search"}>FIND</button></div>
           </form>
           {searchResult?.user && <FriendRow friend={searchResult.user} detail={`@${searchResult.user.username}`} actions={searchResult.relationship === "none" ? <button type="button" disabled={Boolean(busyId)} onClick={() => void run("request", () => api.sendFriendRequest(searchResult.user?.username ?? ""))}>ADD</button> : <span className="friend-state">{searchResult.relationship.toUpperCase()}</span>} />}

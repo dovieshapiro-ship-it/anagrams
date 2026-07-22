@@ -1046,7 +1046,8 @@ input:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 12px;
+  margin: 4px 0 12px;
+  padding: 4px 4px 10px 0;
   border-bottom: 1px solid rgb(117 85 31 / 35%);
 }
 
@@ -1059,32 +1060,34 @@ input:focus-visible {
 
 .add-person-button {
   position: relative;
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   flex: 0 0 auto;
+  align-self: center;
   color: #f4e8c9;
   background: #8b2429;
   border: 2px solid #c89327;
   border-radius: 50%;
   box-shadow: 0 4px 8px rgb(35 20 10 / 28%);
-  font: 700 1.3rem Georgia, serif;
+  font: 700 1rem Georgia, serif;
 }
 
 .add-person-button b {
   position: absolute;
-  right: 5px;
-  top: 1px;
-  font: 700 0.86rem Arial, sans-serif;
+  right: 2px;
+  top: -2px;
+  font: 700 0.72rem Arial, sans-serif;
 }
 
 .person-symbol::before {
   content: "";
   position: absolute;
-  left: 15px;
-  top: 9px;
-  width: 8px;
-  height: 8px;
+  left: 50%;
+  top: 7px;
+  width: 7px;
+  height: 7px;
+  transform: translateX(-50%);
   background: #f4e8c9;
   border-radius: 50%;
 }
@@ -1092,12 +1095,52 @@ input:focus-visible {
 .person-symbol::after {
   content: "";
   position: absolute;
-  left: 11px;
-  top: 19px;
-  width: 16px;
-  height: 10px;
+  left: 50%;
+  top: 16px;
+  width: 14px;
+  height: 9px;
+  transform: translateX(-50%);
   border: 2px solid #f4e8c9;
   border-radius: 10px 10px 4px 4px;
+}
+
+.account-person-button {
+  position: absolute;
+  z-index: 8;
+  top: max(22px, env(safe-area-inset-top));
+  right: max(22px, env(safe-area-inset-right));
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  color: #f4e8c9;
+  background: #8b2429;
+  border: 2px solid #c89327;
+  border-radius: 50%;
+  box-shadow: 0 3px 7px rgb(10 18 13 / 35%);
+}
+
+.account-popover {
+  position: absolute;
+  z-index: 7;
+  top: max(64px, calc(env(safe-area-inset-top) + 44px));
+  right: max(18px, env(safe-area-inset-right));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 155px;
+  padding: 14px 16px;
+  color: #35281d;
+  background: #f4ead2;
+  border: 4px double #b9851e;
+  box-shadow: 7px 8px 0 #4a2718, 0 10px 18px rgb(5 15 10 / 38%);
+  font: 700 0.68rem/1.35 Georgia, serif;
+  letter-spacing: 0.06em;
+  text-align: left;
+}
+
+.account-popover strong {
+  color: #762024;
+  font-size: 0.82rem;
 }
 
 .friend-manager {

@@ -23,7 +23,11 @@ describe("Anagrams app", () => {
 
   it("keeps the approved start screen clean and shows permanent wins", async () => {
     render(<App />);
-    expect(await screen.findByLabelText(/7 multiplayer wins/i)).toBeVisible();
+    const profileButton = await screen.findByRole("button", { name: /open player profile/i });
+    expect(profileButton).toBeVisible();
+    fireEvent.click(profileButton);
+    expect(screen.getByRole("dialog", { name: /player profile/i })).toHaveTextContent("@alice");
+    expect(screen.getByRole("dialog", { name: /player profile/i })).toHaveTextContent("7 WINS");
     expect(screen.getByRole("heading", { name: "ANAGRAMS" })).toBeVisible();
     expect(
       screen.getByRole("img", { name: /sliced kiwi fruit/i }),

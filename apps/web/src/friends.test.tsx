@@ -49,7 +49,7 @@ describe("friends screen", () => {
 
     render(<FriendsScreen onBack={() => undefined} onJoin={() => undefined} />);
     fireEvent.click(screen.getByRole("button", { name: "Find and add people" }));
-    fireEvent.change(screen.getByLabelText("FIND BY EXACT USERNAME"), {
+    fireEvent.change(screen.getByLabelText("FIND BY USERNAME"), {
       target: { value: "  bob  " },
     });
     fireEvent.click(screen.getByRole("button", { name: "FIND" }));
