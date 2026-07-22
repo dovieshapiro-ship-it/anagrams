@@ -83,19 +83,12 @@ describe("two-player API integration", () => {
     await post(`/api/v1/games/${gameId}/ready`, alice, {
       expectedVersion: aliceInitial.game.version,
     });
-    const bobInitial = await getState(gameId, bob);
-    await post(`/api/v1/games/${gameId}/ready`, bob, {
-      expectedVersion: bobInitial.game.version,
-    });
-
-    expect(
-      (await post(`/api/v1/games/${gameId}/round/start`, alice, { expectedVersion: (await getState(gameId, alice)).game.version })).statusCode,
-    ).toBe(200);
-    expect(
-      (await post(`/api/v1/games/${gameId}/round/start`, bob, { expectedVersion: (await getState(gameId, bob)).game.version })).statusCode,
-    ).toBe(200);
 
     const active = await getState(gameId, alice);
+    const bobActive = await getState(gameId, bob);
+    expect(active.me.round?.status).toBe("active");
+    expect(bobActive.me.round?.status).toBe("active");
+    expect(active.me.round?.startedAt).toBe(bobActive.me.round?.startedAt);
     expect(active.game.rack).toMatch(/^[a-z]{6}$/u);
     assertQualityRack(active.game.rack);
     const word = Array.from(dictionary.words()).find(
@@ -483,6 +476,12 @@ describe("two-player API integration", () => {
     expect(response.statusCode).toBe(200);
     return response.json<{
       game: { id: string; status: string; version: number; rack: string | null };
+      me: {
+        round: {
+          status: string;
+          startedAt: string | null;
+        } | null;
+      };
       opponent?: Record<string, unknown>;
       pendingRematch?: { id: string; requestedByPlayerId: string; canAccept: boolean };
       results?: { displayName: string; score: number; validWordCount: number; words: string[]; missedWords: string[] }[];

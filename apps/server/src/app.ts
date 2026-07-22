@@ -980,10 +980,22 @@ export async function buildApp(
       if (members.length !== 2)
         throw new ApiError(409, "INVALID_STATE", "The opponent has not joined yet");
       const readyAt = new Date();
+      const expiresAt = roundExpiresAt(readyAt);
       await tx
         .update(gamePlayers)
-        .set({ status: "ready", readyAt })
+        .set({ status: "playing", readyAt })
         .where(eq(gamePlayers.gameId, gameId));
+      await tx
+        .update(rounds)
+        .set({
+          status: "active",
+          startedAt: readyAt,
+          expiresAt,
+          version: sql`${rounds.version}+1`,
+        })
+        .where(
+          and(eq(rounds.gameId, gameId), eq(rounds.status, "not_started")),
+        );
       await tx
         .update(games)
         .set({
