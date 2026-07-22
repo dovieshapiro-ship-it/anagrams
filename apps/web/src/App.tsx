@@ -13,7 +13,7 @@ import type {
   SessionUser,
 } from "./api";
 // @ts-expect-error Vite supports query-string imports used to invalidate tunnel caches.
-import * as versionedApi from "./api.ts?v=room-lifecycle-26";
+import * as versionedApi from "./api.ts?v=invitation-flow-27";
 import { copyInvite } from "./invite-share";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -863,6 +863,7 @@ function WaitingScreen(props: {
   const [shareStatus, setShareStatus] = useState("");
   const [friends, setFriends] = useState<readonly FriendSummary[]>([]);
   const [outgoingFriend, setOutgoingFriend] = useState<FriendSummary | null>();
+  const [outgoingStatus, setOutgoingStatus] = useState<"pending" | "accepted" | "declined" | null>(null);
   const [invitedFriendId, setInvitedFriendId] = useState("");
   const copyToastTimer = useRef<number | undefined>(undefined);
   useEffect(
@@ -882,10 +883,21 @@ function WaitingScreen(props: {
       setOutgoingFriend(null);
       return;
     }
-    void api
-      .getOutgoingFriendInvitation(props.state.game.id)
-      .then(setOutgoingFriend)
-      .catch(() => setOutgoingFriend(null));
+    const refresh = (): void => {
+      void api
+        .getOutgoingFriendInvitation(props.state.game.id)
+        .then((result) => {
+          setOutgoingFriend(result.friend);
+          setOutgoingStatus(result.status);
+        })
+        .catch(() => {
+          setOutgoingFriend(null);
+          setOutgoingStatus(null);
+        });
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 2_000);
+    return () => window.clearInterval(timer);
   }, [props.state.game.id]);
   const canStart =
     props.state.game.status === "in_progress" &&
@@ -932,24 +944,25 @@ function WaitingScreen(props: {
           </button>
           {directFriendMatch ? (
             <div className="direct-friend-waiting" aria-label="Friend waiting room">
-              <h2>{waitingOpponent ? "WAITING FOR OPPONENT" : "OPPONENT JOINED"}</h2>
+              <h2>{outgoingStatus === "declined" ? "INVITATION DECLINED" : waitingOpponent ? "WAITING FOR OPPONENT" : "OPPONENT JOINED"}</h2>
               {invitedFriend ? (
                 <FriendRow
                   friend={invitedFriend}
                   detail={`@${invitedFriend.username}`}
-                  actions={<span className="friend-state">{waitingOpponent ? "INVITED" : "READY"}</span>}
+                  actions={<span className="friend-state">{outgoingStatus === "declined" ? "DECLINED" : waitingOpponent ? "INVITED" : "READY"}</span>}
                 />
               ) : (
                 <div className="direct-friend-placeholder">YOUR FRIEND</div>
               )}
-              {waitingOpponent && <WaitingCopy />}
+              {waitingOpponent && outgoingStatus !== "declined" && <WaitingCopy />}
+              {outgoingStatus === "declined" && <p className="friend-message" role="status">{invitedFriend?.displayName ?? "Your friend"} declined the game request. This room is closed.</p>}
               <button
                 className="table-button direct-start-button"
                 type="button"
-                onClick={canStart ? props.onStart : props.onReady}
-                disabled={props.busy || waitingOpponent || (!canStart && !needsReady)}
+                onClick={outgoingStatus === "declined" ? props.onExit : canStart ? props.onStart : props.onReady}
+                disabled={props.busy || (outgoingStatus !== "declined" && (waitingOpponent || (!canStart && !needsReady)))}
               >
-                START GAME
+                {outgoingStatus === "declined" ? "BACK TO HOME" : "START GAME"}
               </button>
             </div>
           ) : waitingOpponent ? (

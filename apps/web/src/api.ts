@@ -160,9 +160,14 @@ const friendInvitationsSchema = runtimeSchema<{
 });
 const outgoingFriendInvitationSchema = runtimeSchema<{
   readonly friend: FriendSummary | null;
+  readonly status: "pending" | "accepted" | "declined" | null;
 }>((value) => {
   const item = record(value);
-  return Boolean(item && (item.friend === null || friend(item.friend)));
+  return Boolean(
+    item &&
+      (item.friend === null || friend(item.friend)) &&
+      (item.status === null || ["pending", "accepted", "declined"].includes(String(item.status))),
+  );
 });
 const joinedFriendInvitationSchema = runtimeSchema<{ readonly gameId: string }>(
   (value) => typeof record(value)?.gameId === "string",
@@ -335,13 +340,11 @@ export function createFriendInvitation(
 
 export async function getOutgoingFriendInvitation(
   gameId: string,
-): Promise<FriendSummary | null> {
-  return (
-    await request(
-      `/games/${encodeURIComponent(gameId)}/friend-invitation`,
-      outgoingFriendInvitationSchema,
-    )
-  ).friend;
+): Promise<{ readonly friend: FriendSummary | null; readonly status: "pending" | "accepted" | "declined" | null }> {
+  return request(
+    `/games/${encodeURIComponent(gameId)}/friend-invitation`,
+    outgoingFriendInvitationSchema,
+  );
 }
 
 export async function getFriendGameInvitations(): Promise<

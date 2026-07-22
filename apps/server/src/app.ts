@@ -738,6 +738,16 @@ export async function buildApp(
           sql`select pg_advisory_xact_lock(hashtext(${lowUserId}), hashtext(${highUserId}))`,
         );
         const now = new Date();
+        const superseded = await tx
+          .select({ gameId: friendGameInvites.gameId })
+          .from(friendGameInvites)
+          .where(
+            and(
+              eq(friendGameInvites.inviterUserId, userId),
+              eq(friendGameInvites.recipientUserId, friendUserId),
+              eq(friendGameInvites.status, "pending"),
+            ),
+          );
         await tx
           .update(friendGameInvites)
           .set({ status: "declined", resolvedAt: now })
@@ -748,6 +758,10 @@ export async function buildApp(
               eq(friendGameInvites.status, "pending"),
             ),
           );
+        for (const old of superseded) {
+          if (old.gameId !== gameId)
+            await tx.delete(games).where(eq(games.id, old.gameId));
+        }
         const inverseRows = await tx.execute(sql`
           select fgi.* from friend_game_invites fgi
           join games g on g.id=fgi.game_id
@@ -817,27 +831,38 @@ export async function buildApp(
     const userId = requireAuth(request);
     const { gameId } = gameParam.parse(request.params);
     const player = await membership(database.db, gameId, userId);
-    if (player.seat !== 1)
-      return { friend: null };
     const [row] = await database.db
       .select({
         userId: users.id,
         displayName: users.displayName,
         username: users.username,
+        status: friendGameInvites.status,
       })
       .from(friendGameInvites)
-      .innerJoin(users, eq(users.id, friendGameInvites.recipientUserId))
+      .innerJoin(
+        users,
+        eq(
+          users.id,
+          player.seat === 1
+            ? friendGameInvites.recipientUserId
+            : friendGameInvites.inviterUserId,
+        ),
+      )
       .where(
         and(
           eq(friendGameInvites.gameId, gameId),
-          eq(friendGameInvites.inviterUserId, userId),
+          player.seat === 1
+            ? eq(friendGameInvites.inviterUserId, userId)
+            : eq(friendGameInvites.recipientUserId, userId),
         ),
       )
+      .orderBy(sql`${friendGameInvites.createdAt} desc`)
       .limit(1);
     return {
       friend: row?.username
         ? { userId: row.userId, displayName: row.displayName, username: row.username }
         : null,
+      status: row?.status ?? null,
     };
   });
 
