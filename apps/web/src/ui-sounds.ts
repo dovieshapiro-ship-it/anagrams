@@ -1,7 +1,9 @@
 type AudioContextConstructor = new () => AudioContext;
 
 function audioContextConstructor(): AudioContextConstructor | undefined {
-  const candidate: unknown = Reflect.get(window, "AudioContext");
+  const browserAudio = window as unknown as Readonly<Record<string, unknown>>;
+  const { AudioContext: standard, webkitAudioContext: apple } = browserAudio;
+  const candidate = typeof standard === "function" ? standard : apple;
   return typeof candidate === "function"
     ? candidate as AudioContextConstructor
     : undefined;
