@@ -10,7 +10,7 @@ function audioContextConstructor(): AudioContextConstructor | undefined {
 }
 
 let context: AudioContext | undefined;
-const MUSIC_PREFERENCE = "anagrams:music-enabled";
+const MUSIC_PREFERENCE = "anagrams:music-enabled-v2";
 const SOUND_PREFERENCE = "anagrams:sound-enabled";
 
 function preference(key: string): boolean {
