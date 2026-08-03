@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FriendsScreen } from "./App";
 // @ts-expect-error Vite supports the cache-busting query used by App.
-import * as versionedApi from "./api.ts?v=legato-piano-40";
+import * as versionedApi from "./api.ts?v=piano-runs-41";
 import type * as ApiTypes from "./api";
 import type { FriendsResponse } from "./api";
 

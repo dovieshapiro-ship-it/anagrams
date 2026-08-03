@@ -122,6 +122,11 @@ const JAZZ_MELODIES: readonly (readonly [number, number][])[] = [
   [[0.75, 659.25], [2.5, 554.37], [3.25, 493.88], [5, 587.33], [6.5, 659.25], [8.25, 554.37], [9.5, 440], [11, 493.88], [12.75, 587.33], [14.25, 554.37], [15.25, 440]],
 ];
 
+const PIANO_SCALE_RUNS: readonly (readonly number[])[] = [
+  [293.66, 329.63, 369.99, 415.3, 440, 493.88, 554.37, 659.25],
+  [659.25, 587.33, 554.37, 493.88, 440, 369.99, 329.63, 293.66],
+];
+
 function schedulePianoNote(
   audio: AudioContext,
   destination: AudioNode,
@@ -169,12 +174,21 @@ export function startGameMusic(): () => void {
         schedulePianoNote(audio, master, frequency * 2, chordStart + noteIndex * 0.045, 1.7, 0.0025, "triangle");
       });
     });
-    const melody = JAZZ_MELODIES[variation % JAZZ_MELODIES.length] ?? [];
+    const cycleNumber = variation;
+    const melody = JAZZ_MELODIES[cycleNumber % JAZZ_MELODIES.length] ?? [];
     variation += 1;
     melody.forEach(([offset, frequency]) => {
       schedulePianoNote(audio, master, frequency, cycleStart + offset, 0.92, 0.012, "sine");
       schedulePianoNote(audio, master, frequency * 2, cycleStart + offset, 0.68, 0.003, "triangle");
     });
+    if (cycleNumber % 2 === 1) {
+      const run = PIANO_SCALE_RUNS[Math.floor(cycleNumber / 2) % PIANO_SCALE_RUNS.length] ?? [];
+      run.forEach((frequency, index) => {
+        const start = cycleStart + 6.4 + index * 0.19;
+        schedulePianoNote(audio, master, frequency, start, 0.7, 0.018, "sine");
+        schedulePianoNote(audio, master, frequency * 2, start, 0.48, 0.005, "triangle");
+      });
+    }
   };
   let nextCycle = audio.currentTime + 0.08;
   scheduleCycle(nextCycle);
