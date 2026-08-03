@@ -13,7 +13,7 @@ import type {
   SessionUser,
 } from "./api";
 // @ts-expect-error Vite supports query-string imports used to invalidate tunnel caches.
-import * as versionedApi from "./api.ts?v=audio-controls-44";
+import * as versionedApi from "./api.ts?v=flat-audio-icons-45";
 import { copyInvite } from "./invite-share";
 import {
   gameMusicEnabled,
@@ -553,8 +553,8 @@ function StartScreen(props: {
           <span>@{props.session.username ?? "choose_username"}</span>
           <span>{props.session.wins} {props.session.wins === 1 ? "WIN" : "WINS"}</span>
           <div className="audio-preferences" aria-label="Audio settings">
-            <button className="audio-toggle" type="button" aria-label={`${props.musicEnabled ? "Turn off" : "Turn on"} game music`} aria-pressed={props.musicEnabled} data-enabled={props.musicEnabled} onClick={props.onToggleMusic}><span aria-hidden="true">♫</span></button>
-            <button className="audio-toggle" type="button" aria-label={`${props.soundsEnabled ? "Turn off" : "Turn on"} sound effects`} aria-pressed={props.soundsEnabled} data-enabled={props.soundsEnabled} onClick={props.onToggleSounds}><span aria-hidden="true">🔊</span></button>
+            <button className="audio-toggle" type="button" aria-label={`${props.musicEnabled ? "Turn off" : "Turn on"} game music`} aria-pressed={props.musicEnabled} data-enabled={props.musicEnabled} onClick={props.onToggleMusic}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 17.5V6.7L19 4v10.5"/><ellipse cx="6.5" cy="18" rx="3.5" ry="2.6"/><ellipse cx="16.5" cy="15" rx="3.5" ry="2.6"/></svg></button>
+            <button className="audio-toggle" type="button" aria-label={`${props.soundsEnabled ? "Turn off" : "Turn on"} sound effects`} aria-pressed={props.soundsEnabled} data-enabled={props.soundsEnabled} onClick={props.onToggleSounds}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path className="speaker-wave" d="M16 8c1.2 1 1.8 2.3 1.8 4S17.2 15 16 16M19 5.5c2 1.8 3 4 3 6.5s-1 4.7-3 6.5"/></svg></button>
           </div>
           {!props.session.hasPassword && <form className="legacy-password" onSubmit={(event) => { event.preventDefault(); setPasswordStatus("SAVING…"); void props.onSetPassword(newPassword).then(() => { setPasswordStatus("PASSWORD SAVED"); setNewPassword(""); }).catch((caught: unknown) => setPasswordStatus(messageOf(caught))); }}><label htmlFor="legacy-password">SET A PASSWORD</label><input id="legacy-password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={8} maxLength={128} autoComplete="new-password" placeholder="8+ characters" /><button type="submit" disabled={newPassword.length < 8}>SAVE PASSWORD</button>{passwordStatus && <small>{passwordStatus}</small>}</form>}
           <button type="button" onClick={props.onFriends}>FRIENDS</button>

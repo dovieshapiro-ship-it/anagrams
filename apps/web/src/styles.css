@@ -1247,6 +1247,21 @@ input:focus-visible {
   letter-spacing: 0;
 }
 
+.account-popover .audio-toggle svg {
+  width: 20px;
+  height: 20px;
+  overflow: visible;
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.account-popover .audio-toggle svg .speaker-wave {
+  fill: none;
+}
+
 .account-popover .audio-toggle[data-enabled="false"] {
   color: #c9bfa8;
   background: #68645b;
