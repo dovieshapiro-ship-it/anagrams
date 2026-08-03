@@ -106,28 +106,45 @@ export function playWordSuccess(anagram: boolean): void {
   notes.forEach((frequency, index) => loungeNote(audio, frequency, index * 0.16));
 }
 
-const LOUNGE_CHORDS: readonly (readonly number[])[] = [
-  [146.83, 220, 277.18, 329.63],
-  [123.47, 185, 246.94, 293.66],
-  [164.81, 220, 246.94, 329.63],
-  [110, 164.81, 207.65, 277.18],
+const JAZZ_CHORDS: readonly (readonly number[])[] = [
+  [220, 277.18, 329.63, 415.3],
+  [246.94, 311.13, 369.99, 440],
+  [164.81, 196, 246.94, 293.66],
+  [220, 261.63, 329.63, 392],
+  [185, 220, 277.18, 329.63],
+  [246.94, 311.13, 369.99, 440],
+  [164.81, 196, 246.94, 293.66],
+  [220, 261.63, 311.13, 392],
 ];
 
-function scheduleMusicNote(
+const WALKING_BASS = [
+  73.42, 92.5, 110, 123.47,
+  82.41, 98, 110, 138.59,
+  92.5, 110, 123.47, 138.59,
+  82.41, 98, 110, 123.47,
+] as const;
+
+const JAZZ_MELODIES: readonly (readonly [number, number][])[] = [
+  [[0.5, 554.37], [1.25, 659.25], [3, 587.33], [4.5, 493.88], [5.25, 554.37], [7, 440], [8.75, 493.88], [10.5, 587.33], [12.25, 554.37], [13.5, 659.25], [15, 493.88]],
+  [[0.75, 659.25], [2.5, 554.37], [3.25, 493.88], [5, 587.33], [6.5, 659.25], [8.25, 554.37], [9.5, 440], [11, 493.88], [12.75, 587.33], [14.25, 554.37], [15.25, 440]],
+];
+
+function scheduleJazzNote(
   audio: AudioContext,
   destination: AudioNode,
   frequency: number,
   start: number,
   duration: number,
   volume: number,
+  type: OscillatorType,
 ): void {
   const oscillator = audio.createOscillator();
   const gain = audio.createGain();
-  oscillator.type = "sine";
+  oscillator.type = type;
   oscillator.frequency.setValueAtTime(frequency, start);
   gain.gain.setValueAtTime(0.0001, start);
-  gain.gain.exponentialRampToValueAtTime(volume, start + 0.22);
-  gain.gain.setValueAtTime(volume, start + duration - 0.45);
+  gain.gain.exponentialRampToValueAtTime(volume, start + 0.025);
+  gain.gain.setValueAtTime(volume * 0.58, start + Math.min(0.16, duration * 0.45));
   gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
   oscillator.connect(gain);
   gain.connect(destination);
@@ -135,27 +152,60 @@ function scheduleMusicNote(
   oscillator.stop(start + duration + 0.02);
 }
 
+function scheduleBrush(audio: AudioContext, destination: AudioNode, start: number): void {
+  const frameCount = Math.floor(audio.sampleRate * 0.055);
+  const buffer = audio.createBuffer(1, frameCount, audio.sampleRate);
+  const samples = buffer.getChannelData(0);
+  for (let index = 0; index < samples.length; index += 1)
+    samples[index] = Math.random() * 2 - 1;
+  const source = audio.createBufferSource();
+  const filter = audio.createBiquadFilter();
+  const gain = audio.createGain();
+  source.buffer = buffer;
+  filter.type = "highpass";
+  filter.frequency.setValueAtTime(4_800, start);
+  gain.gain.setValueAtTime(0.006, start);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.055);
+  source.connect(filter);
+  filter.connect(gain);
+  gain.connect(destination);
+  source.start(start);
+}
+
 export function startGameMusic(): () => void {
   const audio = getContext();
   if (!audio) return () => undefined;
   const master = audio.createGain();
-  master.gain.setValueAtTime(0.72, audio.currentTime);
+  master.gain.setValueAtTime(0.68, audio.currentTime);
   master.connect(audio.destination);
-  const cycleDuration = 8;
+  const cycleDuration = 16;
+  let variation = 0;
   const scheduleCycle = (cycleStart: number): void => {
-    LOUNGE_CHORDS.forEach((chord, chordIndex) => {
+    JAZZ_CHORDS.forEach((chord, chordIndex) => {
       const chordStart = cycleStart + chordIndex * 2;
       chord.forEach((frequency, noteIndex) => {
-        scheduleMusicNote(
+        scheduleJazzNote(
           audio,
           master,
           frequency,
-          chordStart + noteIndex * 0.055,
-          1.82,
-          noteIndex === 0 ? 0.012 : 0.008,
+          chordStart + noteIndex * 0.025,
+          0.68,
+          0.012,
+          "triangle",
         );
       });
     });
+    WALKING_BASS.forEach((frequency, index) => {
+      scheduleJazzNote(audio, master, frequency, cycleStart + index, 0.42, 0.025, "sine");
+    });
+    const melody = JAZZ_MELODIES[variation % JAZZ_MELODIES.length] ?? [];
+    variation += 1;
+    melody.forEach(([offset, frequency]) => {
+      scheduleJazzNote(audio, master, frequency, cycleStart + offset, 0.34, 0.017, "sine");
+      scheduleJazzNote(audio, master, frequency * 2, cycleStart + offset, 0.18, 0.004, "triangle");
+    });
+    for (let beat = 0; beat < 32; beat += 1)
+      scheduleBrush(audio, master, cycleStart + beat * 0.5 + (beat % 2 === 1 ? 0.035 : 0));
   };
   let nextCycle = audio.currentTime + 0.08;
   scheduleCycle(nextCycle);
