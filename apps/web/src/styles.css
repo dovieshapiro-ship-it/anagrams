@@ -1237,7 +1237,7 @@ input:focus-visible {
   width: min(100%, 480px);
   min-height: 100dvh;
   margin: 0 auto;
-  padding: 38px 28px 98px;
+  padding: 38px 28px;
   overflow: hidden;
   border: 2px solid #bd881d;
   outline: 1px solid #f0c24b;

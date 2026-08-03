@@ -31,8 +31,9 @@ describe("Anagrams app", () => {
     expect(screen.getByRole("dialog", { name: /player profile/i })).toHaveTextContent("7 WINS");
     expect(screen.getByRole("heading", { name: "ANAGRAMS" })).toBeVisible();
     expect(
-      screen.getByRole("img", { name: /sliced kiwi fruit/i }),
-    ).toBeVisible();
+      screen.queryByRole("img", { name: /sliced kiwi fruit/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("KiwiGames")).not.toBeInTheDocument();
     expect(screen.queryByText("FRUIT")).not.toBeInTheDocument();
     expect(screen.getByText(/60 SECONDS.*6 LETTERS/)).toBeVisible();
   });

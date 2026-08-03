@@ -13,7 +13,7 @@ import type {
   SessionUser,
 } from "./api";
 // @ts-expect-error Vite supports query-string imports used to invalidate tunnel caches.
-import * as versionedApi from "./api.ts?v=flow-audit-28";
+import * as versionedApi from "./api.ts?v=clean-public-29";
 import { copyInvite } from "./invite-share";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -516,13 +516,9 @@ function StartScreen(props: {
     <section className="start-screen screen" aria-labelledby="start-title">
       <h1 id="start-title">ANAGRAMS</h1>
       <div className="home-account">
-        <span className="welcome-name">WELCOME, {props.session.displayName.toUpperCase()}</span>
         <button className="account-person-button" type="button" aria-label="Open player profile" aria-expanded={accountOpen} onClick={() => setAccountOpen((open) => !open)}><span className="person-symbol" aria-hidden="true" /></button>
         {accountOpen && <div className="account-popover" role="dialog" aria-label="Player profile"><strong>{props.session.displayName}</strong><span>@{props.session.username ?? "choose_username"}</span><span>{props.session.wins} {props.session.wins === 1 ? "WIN" : "WINS"}</span>{!props.session.hasPassword && <form className="legacy-password" onSubmit={(event) => { event.preventDefault(); setPasswordStatus("SAVING…"); void props.onSetPassword(newPassword).then(() => { setPasswordStatus("PASSWORD SAVED"); setNewPassword(""); }).catch((caught: unknown) => setPasswordStatus(messageOf(caught))); }}><label htmlFor="legacy-password">SET A PASSWORD</label><input id="legacy-password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={8} maxLength={128} autoComplete="new-password" placeholder="8+ characters" /><button type="submit" disabled={newPassword.length < 8}>SAVE PASSWORD</button>{passwordStatus && <small>{passwordStatus}</small>}</form>}<button type="button" onClick={props.onFriends}>FRIENDS</button></div>}
       </div>
-      <div className="title-ornament start-ornament" aria-hidden="true" />
-      <KiwiFruit className="start-kiwi" />
-      <p className="brand-mark">KiwiGames</p>
       <div className="mode-actions">
         <button className="table-button home-option-button" type="button" onClick={props.onPlay}>
           PLAY
@@ -539,7 +535,6 @@ function StartScreen(props: {
           {props.error}
         </p>
       )}
-      <WalnutRail />
     </section>
   );
 }
@@ -554,7 +549,6 @@ function GameModeScreen(props: {
     <section className="mode-screen screen" aria-labelledby="mode-title">
       <button className="round-back" type="button" onClick={props.onBack} aria-label="Back to home">←</button>
       <h1 id="mode-title" className="screen-title">PLAY</h1>
-      <div className="title-ornament" aria-hidden="true" />
       <div className="mode-choice-actions">
         <button className="table-button" type="button" onClick={props.onSolo}>SOLO</button>
         <button className="table-button multiplayer-choice" type="button" onClick={props.onMultiplayer}>
@@ -562,7 +556,6 @@ function GameModeScreen(props: {
           {props.invitationCount > 0 && <span className="friend-badge" aria-label={`${String(props.invitationCount)} pending game invitations`}>{props.invitationCount}</span>}
         </button>
       </div>
-      <WalnutRail />
     </section>
   );
 }
@@ -584,9 +577,6 @@ function RulesScreen(props: {
       <h1 id="rules-title" className="screen-title">
         HOW TO PLAY
       </h1>
-      <div className="title-ornament" aria-hidden="true">
-        <KiwiFruit className="ornament-kiwi" />
-      </div>
       <div className="ivory-panel rules-sheet">
         <div className="rule-row">
           <span className="rule-medallion">◷</span>
@@ -622,7 +612,6 @@ function RulesScreen(props: {
       <button className="table-button" type="button" onClick={props.onPlay}>
         START ROUND
       </button>
-      <WalnutRail />
     </section>
   );
 }
@@ -631,9 +620,7 @@ function AuthLoading(): React.JSX.Element {
   return (
     <section className="auth-screen screen" aria-live="polite">
       <h1 className="screen-title">ANAGRAMS</h1>
-      <div className="title-ornament" aria-hidden="true" />
       <p className="auth-loading">OPENING THE CLUB…</p>
-      <WalnutRail />
     </section>
   );
 }
@@ -653,9 +640,6 @@ function AuthScreen(props: {
       <section className="auth-screen start-screen screen" aria-labelledby="welcome-title">
         <div className="auth-brand-cluster">
           <h1 id="welcome-title">ANAGRAMS</h1>
-          <div className="title-ornament start-ornament auth-ornament" aria-hidden="true" />
-          <KiwiFruit className="start-kiwi" />
-          <p className="brand-mark">KiwiGames</p>
         </div>
         <div className="mode-actions">
           <button className="table-button" type="button" onClick={() => props.onView("login")}>LOG IN</button>
@@ -663,14 +647,12 @@ function AuthScreen(props: {
         </div>
         <p className="game-facts">60 SECONDS <span aria-hidden="true">•</span> 6 LETTERS</p>
         <StatusMessage error={props.error} />
-        <WalnutRail />
       </section>
     );
   const signup = props.view === "signup";
   return (
     <section className="auth-screen screen" aria-labelledby="auth-title">
       <h1 id="auth-title" className="screen-title">{signup ? "JOIN THE CLUB" : "WELCOME BACK"}</h1>
-      <div className="title-ornament" aria-hidden="true" />
       <form
         className="ivory-panel auth-sheet"
         onSubmit={(event) => {
@@ -696,7 +678,6 @@ function AuthScreen(props: {
         <button className="text-link" type="button" onClick={() => props.onView(signup ? "login" : "signup")}>{signup ? "ALREADY A MEMBER? LOG IN" : "NEW HERE? CREATE ACCOUNT"}</button>
       </form>
       <button className="round-back" type="button" onClick={() => props.onView("welcome")} aria-label="Back to welcome">←</button>
-      <WalnutRail />
     </section>
   );
 }
@@ -802,7 +783,6 @@ export function FriendsScreen(props: {
       <section className="friends-screen screen" aria-labelledby="username-title">
         <button className="round-back" type="button" onClick={props.onBack} aria-label="Back to home">←</button>
         <h1 id="username-title" className="screen-title">CHOOSE YOUR USERNAME</h1>
-        <div className="title-ornament" aria-hidden="true" />
         <form className="ivory-panel username-sheet" onSubmit={(event) => { event.preventDefault(); void claim(); }}>
           <p>This is how friends will find you. You can choose it once.</p>
           <label className="field-label" htmlFor="claim-username">USERNAME</label>
@@ -811,7 +791,6 @@ export function FriendsScreen(props: {
           <button className="table-button" type="submit" disabled={busyId === "username" || claimUsername.length < 3}>{busyId === "username" ? "SAVING…" : "CLAIM USERNAME"}</button>
           {message && <p className="friend-message" role="status">{message}</p>}
         </form>
-        <WalnutRail />
       </section>
     );
 
@@ -819,7 +798,6 @@ export function FriendsScreen(props: {
     <section className="friends-screen screen" aria-labelledby="friends-title">
       <button className="round-back" type="button" onClick={props.onBack} aria-label="Back to home">←</button>
       <h1 id="friends-title" className="screen-title">{managing ? "FRIENDS" : "MULTIPLAYER"}</h1>
-      <div className="title-ornament" aria-hidden="true"><KiwiFruit className="ornament-kiwi" /></div>
       <div className="ivory-panel friends-sheet">
         {!managing && <div className="multiplayer-heading"><h2>CHOOSE A FRIEND</h2><button className="add-person-button" type="button" aria-label="Find and add people" onClick={() => setManageOpen((open) => !open)}><span className="person-symbol" aria-hidden="true" /><b aria-hidden="true">+</b></button></div>}
         {gameInvites.length > 0 && <FriendSection title="GAME INVITATIONS">{gameInvites.map((invite) => <FriendRow key={invite.id} friend={invite.inviter} detail="invited you to play" actions={<><button type="button" disabled={Boolean(busyId)} onClick={() => void run(invite.id, async () => props.onJoin(await api.acceptFriendGameInvitation(invite.id)))}>JOIN</button><button type="button" className="quiet-action" disabled={Boolean(busyId)} onClick={() => void run(invite.id, () => api.declineFriendGameInvitation(invite.id))}>DECLINE</button></>} />)}</FriendSection>}
@@ -835,7 +813,6 @@ export function FriendsScreen(props: {
         </div>}
         {message && <p className="friend-message" role="status">{message}</p>}
       </div>
-      <WalnutRail />
     </section>
   );
 }
@@ -1239,7 +1216,6 @@ export function PlayScreen(props: {
           Anagram found!
         </div>
       )}
-      <WalnutRail />
     </section>
   );
 }
@@ -1263,9 +1239,6 @@ function ResultsScreen(props: {
       <h1 id="results-title" className="screen-title">
         ROUND RESULTS
       </h1>
-      <div className="title-ornament" aria-hidden="true">
-        <KiwiFruit className="ornament-kiwi" />
-      </div>
       <div className="ivory-panel results-sheet">
         <div className="results-grid">
           <ResultColumn
@@ -1322,7 +1295,6 @@ function ResultsScreen(props: {
         EXIT
       </button>
       <StatusMessage error={props.error} />
-      <WalnutRail />
     </section>
   );
 }
@@ -1363,7 +1335,7 @@ function KiwiWordsColumn(props: {
 }): React.JSX.Element {
   return (
     <article className="result-column kiwi-column">
-      <h2>KIWI’S 6-LETTER WORDS</h2>
+      <h2>POSSIBLE 6-LETTER WORDS</h2>
       <span className="kiwi-word-count">{props.words.length} POSSIBLE</span>
       <ul>
         {props.words.map((word) => (
@@ -1374,22 +1346,6 @@ function KiwiWordsColumn(props: {
         ))}
       </ul>
     </article>
-  );
-}
-function WalnutRail(): React.JSX.Element {
-  return <div className="walnut-rail" aria-hidden="true" />;
-}
-function KiwiFruit(props: { readonly className?: string }): React.JSX.Element {
-  return (
-    <span
-      className={`kiwi-mark${props.className ? ` ${props.className}` : ""}`}
-      role="img"
-      aria-label="Sliced kiwi fruit"
-    >
-      {Array.from({ length: 8 }, (_, index) => (
-        <i key={String(index)} />
-      ))}
-    </span>
   );
 }
 function StatusMessage(props: {
