@@ -1,5 +1,3 @@
-import * as Tone from "tone";
-
 type AudioContextConstructor = new () => AudioContext;
 
 function audioContextConstructor(): AudioContextConstructor | undefined {
@@ -41,6 +39,9 @@ export function soundEffectsEnabled(): boolean {
 
 export function setGameMusicEnabled(enabled: boolean): void {
   savePreference(MUSIC_PREFERENCE, enabled);
+  if (!backgroundMusic) return;
+  if (enabled) void playBackgroundMusic();
+  else backgroundMusic.pause();
 }
 
 export function setSoundEffectsEnabled(enabled: boolean): void {
@@ -158,100 +159,36 @@ export function playWordSuccess(anagram: boolean): void {
   });
 }
 
-const SONG_CHORDS: readonly (readonly string[])[] = [
-  ["C3", "G3", "B3", "D4", "E4"],
-  ["A2", "E3", "G3", "C#4", "E4"],
-  ["D3", "A3", "C4", "E4", "F4"],
-  ["G2", "F3", "A3", "B3", "E4"],
-  ["E3", "G3", "B3", "D4", "F#4"],
-  ["A2", "E3", "G3", "C#4", "F#4"],
-  ["D3", "A3", "C4", "E4", "F4"],
-  ["G2", "F3", "A3", "B3", "E4"],
-];
+let backgroundMusic: HTMLAudioElement | undefined;
 
-type ExpressiveNote = readonly [offset: number, note: string, velocity: number, duration: number];
-
-const PIANO_PHRASES: readonly (readonly ExpressiveNote[])[] = [
-  [[0, "E4", 0.58, 0.7], [0.42, "G4", 0.66, 0.68], [0.88, "B4", 0.6, 0.82], [1.5, "D5", 0.72, 0.72], [2.08, "C5", 0.57, 1.2]],
-  [[0, "F4", 0.6, 0.72], [0.36, "A4", 0.68, 0.7], [0.92, "C5", 0.56, 0.9], [1.58, "E5", 0.73, 0.74], [2.2, "D5", 0.6, 1.22]],
-  [[0, "G4", 0.59, 0.7], [0.48, "B4", 0.69, 0.68], [0.98, "D5", 0.58, 0.86], [1.62, "F#5", 0.74, 0.72], [2.24, "E5", 0.61, 1.26]],
-  [[0, "A4", 0.68, 0.72], [0.42, "G4", 0.55, 0.68], [0.9, "F4", 0.64, 0.84], [1.5, "E4", 0.54, 0.76], [2.12, "D4", 0.7, 1.3]],
-];
-
-let pianoPromise: Promise<Tone.Sampler> | undefined;
-
-function sampledPiano(): Promise<Tone.Sampler> {
-  pianoPromise ??= new Promise<Tone.Sampler>((resolve) => {
-    const sampler = new Tone.Sampler({
-      urls: {
-        C2: "C2.mp3", "D#2": "Ds2.mp3", "F#2": "Fs2.mp3", A2: "A2.mp3",
-        C3: "C3.mp3", "D#3": "Ds3.mp3", "F#3": "Fs3.mp3", A3: "A3.mp3",
-        C4: "C4.mp3", "D#4": "Ds4.mp3", "F#4": "Fs4.mp3",
-      },
-      baseUrl: "/audio/salamander/",
-      release: 2.4,
-      volume: -7,
-      onload: () => resolve(sampler),
-    }).toDestination();
-  });
-  return pianoPromise;
+function getBackgroundMusic(): HTMLAudioElement {
+  backgroundMusic ??= new Audio("/audio/playful-piano-atmos.ogg");
+  backgroundMusic.loop = true;
+  backgroundMusic.preload = "auto";
+  backgroundMusic.volume = 0.32;
+  return backgroundMusic;
 }
 
-function startSampledPianoSong(piano: Tone.Sampler): () => void {
-  const transport = Tone.getTransport();
-  transport.stop();
-  transport.cancel();
-  transport.bpm.value = 72;
-  const events: [number, { note: string; duration: number; velocity: number }][] = [];
-  SONG_CHORDS.forEach((chord, chordIndex) => {
-    chord.forEach((note, noteIndex) => {
-      events.push([chordIndex * 5 + noteIndex * 0.055, {
-        note,
-        duration: 4.75,
-        velocity: noteIndex === 0 ? 0.52 : 0.4,
-      }]);
-    });
-  });
-  PIANO_PHRASES.forEach((phrase, phraseIndex) => {
-    phrase.forEach(([offset, note, velocity, duration]) => {
-      events.push([2 + phraseIndex * 10 + offset, { note, duration, velocity }]);
-    });
-  });
-  const part = new Tone.Part((time, event) => {
-    piano.triggerAttackRelease(event.note, event.duration, time, event.velocity);
-  }, events).start(0);
-  part.loop = true;
-  part.loopEnd = 40;
-  transport.start("+0.08");
-  return () => {
-    part.dispose();
-    transport.stop();
-    transport.cancel();
-    piano.releaseAll(Tone.now());
-  };
+async function playBackgroundMusic(): Promise<void> {
+  if (!gameMusicEnabled()) return;
+  try {
+    await getBackgroundMusic().play();
+  } catch {
+    // Mobile browsers will retry after the first user gesture.
+  }
 }
 
 export function startGameMusic(): () => void {
-  if (!gameMusicEnabled()) return () => undefined;
-  let cancelled = false;
-  let stop = (): void => undefined;
-  void Tone.start()
-    .then(() => sampledPiano())
-    .then((piano) => {
-      if (!cancelled) stop = startSampledPianoSong(piano);
-    })
-    .catch(() => undefined);
+  void playBackgroundMusic();
   return () => {
-    cancelled = true;
-    stop();
+    backgroundMusic?.pause();
   };
 }
 
 export function installButtonSounds(): () => void {
   const unlock = (): void => {
     void runningContext();
-    void Tone.start().catch(() => undefined);
-    void sampledPiano().catch(() => undefined);
+    void playBackgroundMusic();
   };
   const handlePointerDown = (event: PointerEvent): void => {
     if (!(event.target instanceof Element)) return;

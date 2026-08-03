@@ -62,6 +62,7 @@ export function App(): React.JSX.Element {
   const [soundsEnabled, setSoundsEnabled] = useState(soundEffectsEnabled);
 
   useEffect(() => installButtonSounds(), []);
+  useEffect(() => startGameMusic(), []);
 
   useEffect(() => {
     if (sessionBootstrapStarted.current) return;
@@ -1087,7 +1088,6 @@ export function PlayScreen(props: {
   readonly onFinish: () => void;
   readonly onExit: () => void;
 }): React.JSX.Element {
-  useEffect(() => startGameMusic(), []);
   const [feedback, setFeedback] = useState("");
   const originalRack = Array.from(props.state.game.rack ?? "");
   const [rack, setRack] = useState<readonly RackTile[]>(() =>
