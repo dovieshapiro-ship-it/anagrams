@@ -548,8 +548,9 @@ input:focus-visible {
   margin: 0 0 8px;
   color: #684b20;
   font:
-    700 0.72rem Arial,
-    sans-serif;
+    700 0.72rem Georgia,
+    "Times New Roman",
+    serif;
   letter-spacing: 0.2em;
 }
 .final-score {
