@@ -1,0 +1,12 @@
+Salamander Grand Piano V3
+Copyright Alexander Holm
+
+Licensed under the Creative Commons Attribution 3.0 Unported License:
+https://creativecommons.org/licenses/by/3.0/
+
+Source:
+https://github.com/sfzinstruments/SalamanderGrandPiano
+
+The MP3 conversions distributed with this application are derived from the
+Salamander Grand Piano V3 sample library and are used without endorsement by
+the original author.

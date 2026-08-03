@@ -1,3 +1,5 @@
+import * as Tone from "tone";
+
 type AudioContextConstructor = new () => AudioContext;
 
 function audioContextConstructor(): AudioContextConstructor | undefined {
@@ -156,95 +158,76 @@ export function playWordSuccess(anagram: boolean): void {
   });
 }
 
-const SONG_CHORDS: readonly (readonly number[])[] = [
-  [130.81, 196, 246.94, 293.66, 329.63],
-  [110, 164.81, 207.65, 277.18, 311.13],
-  [146.83, 220, 261.63, 329.63, 349.23],
-  [98, 174.61, 220, 246.94, 329.63],
-  [164.81, 196, 246.94, 293.66, 369.99],
-  [110, 164.81, 207.65, 277.18, 329.63],
-  [146.83, 220, 261.63, 329.63, 349.23],
-  [98, 174.61, 220, 246.94, 329.63],
+const SONG_CHORDS: readonly (readonly string[])[] = [
+  ["C3", "G3", "B3", "D4", "E4"],
+  ["A2", "E3", "G3", "C#4", "E4"],
+  ["D3", "A3", "C4", "E4", "F4"],
+  ["G2", "F3", "A3", "B3", "E4"],
+  ["E3", "G3", "B3", "D4", "F#4"],
+  ["A2", "E3", "G3", "C#4", "F#4"],
+  ["D3", "A3", "C4", "E4", "F4"],
+  ["G2", "F3", "A3", "B3", "E4"],
 ];
 
-type ExpressiveNote = readonly [offset: number, frequency: number, volume: number, duration: number];
+type ExpressiveNote = readonly [offset: number, note: string, velocity: number, duration: number];
 
-const ORGAN_PHRASES: readonly (readonly ExpressiveNote[])[] = [
-  [[0, 329.63, 0.032, 0.9], [0.32, 392, 0.038, 0.82], [0.67, 493.88, 0.034, 1.04], [1.12, 587.33, 0.042, 0.94], [1.55, 523.25, 0.03, 1.3]],
-  [[0, 349.23, 0.034, 0.88], [0.28, 440, 0.04, 0.9], [0.72, 523.25, 0.03, 1.1], [1.18, 659.25, 0.043, 0.96], [1.58, 587.33, 0.033, 1.34]],
-  [[0, 392, 0.033, 0.9], [0.38, 493.88, 0.04, 0.84], [0.75, 587.33, 0.032, 1.02], [1.2, 739.99, 0.044, 0.94], [1.64, 659.25, 0.034, 1.32]],
-  [[0, 440, 0.04, 0.92], [0.34, 392, 0.032, 0.86], [0.7, 349.23, 0.038, 1.02], [1.16, 329.63, 0.03, 0.92], [1.58, 293.66, 0.043, 1.38]],
+const PIANO_PHRASES: readonly (readonly ExpressiveNote[])[] = [
+  [[0, "E4", 0.58, 0.7], [0.42, "G4", 0.66, 0.68], [0.88, "B4", 0.6, 0.82], [1.5, "D5", 0.72, 0.72], [2.08, "C5", 0.57, 1.2]],
+  [[0, "F4", 0.6, 0.72], [0.36, "A4", 0.68, 0.7], [0.92, "C5", 0.56, 0.9], [1.58, "E5", 0.73, 0.74], [2.2, "D5", 0.6, 1.22]],
+  [[0, "G4", 0.59, 0.7], [0.48, "B4", 0.69, 0.68], [0.98, "D5", 0.58, 0.86], [1.62, "F#5", 0.74, 0.72], [2.24, "E5", 0.61, 1.26]],
+  [[0, "A4", 0.68, 0.72], [0.42, "G4", 0.55, 0.68], [0.9, "F4", 0.64, 0.84], [1.5, "E4", 0.54, 0.76], [2.12, "D4", 0.7, 1.3]],
 ];
 
-function scheduleInstrumentNote(
-  audio: AudioContext,
-  destination: AudioNode,
-  frequency: number,
-  start: number,
-  duration: number,
-  volume: number,
-  type: OscillatorType,
-  character: "piano" | "organ",
-): void {
-  const oscillator = audio.createOscillator();
-  const gain = audio.createGain();
-  oscillator.type = type;
-  oscillator.frequency.setValueAtTime(frequency, start);
-  gain.gain.setValueAtTime(0.0001, start);
-  gain.gain.exponentialRampToValueAtTime(volume, start + (character === "piano" ? 0.025 : 0.09));
-  gain.gain.setValueAtTime(volume * (character === "piano" ? 0.42 : 0.88), start + Math.max(0.12, duration - 0.38));
-  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-  oscillator.connect(gain);
-  gain.connect(destination);
-  oscillator.start(start);
-  oscillator.stop(start + duration + 0.02);
+let pianoPromise: Promise<Tone.Sampler> | undefined;
+
+function sampledPiano(): Promise<Tone.Sampler> {
+  pianoPromise ??= new Promise<Tone.Sampler>((resolve) => {
+    const sampler = new Tone.Sampler({
+      urls: {
+        C2: "C2.mp3", "D#2": "Ds2.mp3", "F#2": "Fs2.mp3", A2: "A2.mp3",
+        C3: "C3.mp3", "D#3": "Ds3.mp3", "F#3": "Fs3.mp3", A3: "A3.mp3",
+        C4: "C4.mp3", "D#4": "Ds4.mp3", "F#4": "Fs4.mp3",
+      },
+      baseUrl: "/audio/salamander/",
+      release: 2.4,
+      volume: -7,
+      onload: () => resolve(sampler),
+    }).toDestination();
+  });
+  return pianoPromise;
 }
 
-function startScheduledGameMusic(audio: AudioContext): () => void {
-  const master = audio.createGain();
-  master.gain.setValueAtTime(0.88, audio.currentTime);
-  master.connect(audio.destination);
-  const cycleDuration = 40;
-  const scheduleCycle = (cycleStart: number): void => {
-    SONG_CHORDS.forEach((chord, chordIndex) => {
-      const chordStart = cycleStart + chordIndex * 5;
-      chord.forEach((frequency, noteIndex) => {
-        scheduleInstrumentNote(
-          audio,
-          master,
-          frequency,
-          chordStart + noteIndex * 0.052,
-          5.15,
-          noteIndex === 0 ? 0.024 : 0.017,
-          "triangle",
-          "piano",
-        );
-        scheduleInstrumentNote(audio, master, frequency * 2, chordStart + noteIndex * 0.052, 3.9, 0.003, "sine", "piano");
-      });
+function startSampledPianoSong(piano: Tone.Sampler): () => void {
+  const transport = Tone.getTransport();
+  transport.stop();
+  transport.cancel();
+  transport.bpm.value = 72;
+  const events: [number, { note: string; duration: number; velocity: number }][] = [];
+  SONG_CHORDS.forEach((chord, chordIndex) => {
+    chord.forEach((note, noteIndex) => {
+      events.push([chordIndex * 5 + noteIndex * 0.055, {
+        note,
+        duration: 4.75,
+        velocity: noteIndex === 0 ? 0.52 : 0.4,
+      }]);
     });
-    ORGAN_PHRASES.forEach((phrase, phraseIndex) => {
-      phrase.forEach(([offset, frequency, volume, duration]) => {
-        const start = cycleStart + 2 + phraseIndex * 10 + offset;
-        scheduleInstrumentNote(audio, master, frequency, start, duration, volume, "sine", "organ");
-        scheduleInstrumentNote(audio, master, frequency * 2, start, duration * 0.9, volume * 0.16, "square", "organ");
-      });
+  });
+  PIANO_PHRASES.forEach((phrase, phraseIndex) => {
+    phrase.forEach(([offset, note, velocity, duration]) => {
+      events.push([2 + phraseIndex * 10 + offset, { note, duration, velocity }]);
     });
-  };
-  let nextCycle = audio.currentTime + 0.08;
-  scheduleCycle(nextCycle);
-  nextCycle += cycleDuration;
-  const scheduler = window.setInterval(() => {
-    while (nextCycle < audio.currentTime + cycleDuration) {
-      scheduleCycle(nextCycle);
-      nextCycle += cycleDuration;
-    }
-  }, 2_000);
+  });
+  const part = new Tone.Part((time, event) => {
+    piano.triggerAttackRelease(event.note, event.duration, time, event.velocity);
+  }, events).start(0);
+  part.loop = true;
+  part.loopEnd = 40;
+  transport.start("+0.08");
   return () => {
-    window.clearInterval(scheduler);
-    master.gain.cancelScheduledValues(audio.currentTime);
-    master.gain.setValueAtTime(Math.max(master.gain.value, 0.0001), audio.currentTime);
-    master.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.12);
-    window.setTimeout(() => master.disconnect(), 150);
+    part.dispose();
+    transport.stop();
+    transport.cancel();
+    piano.releaseAll(Tone.now());
   };
 }
 
@@ -252,10 +235,12 @@ export function startGameMusic(): () => void {
   if (!gameMusicEnabled()) return () => undefined;
   let cancelled = false;
   let stop = (): void => undefined;
-  void runningContext().then((audio) => {
-    if (!audio || cancelled) return;
-    stop = startScheduledGameMusic(audio);
-  });
+  void Tone.start()
+    .then(() => sampledPiano())
+    .then((piano) => {
+      if (!cancelled) stop = startSampledPianoSong(piano);
+    })
+    .catch(() => undefined);
   return () => {
     cancelled = true;
     stop();
@@ -265,6 +250,8 @@ export function startGameMusic(): () => void {
 export function installButtonSounds(): () => void {
   const unlock = (): void => {
     void runningContext();
+    void Tone.start().catch(() => undefined);
+    void sampledPiano().catch(() => undefined);
   };
   const handlePointerDown = (event: PointerEvent): void => {
     if (!(event.target instanceof Element)) return;

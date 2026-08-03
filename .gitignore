@@ -11,3 +11,5 @@ test-results/
 .DS_Store
 *.log
 outputs/*.zip
+apps/web/android/app/src/main/res/xml/config *.xml
+apps/web/ios/App/App/config *.xml

@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: kiwigames-anagrams
+    runtime: docker
+    dockerfilePath: ./apps/server/Dockerfile
+    healthCheckPath: /ready
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: TRUST_PROXY
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: PUBLIC_WEB_URL
+        sync: false
+      - key: WEB_ORIGINS
+        sync: false
