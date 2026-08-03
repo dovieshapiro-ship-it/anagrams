@@ -117,19 +117,12 @@ const JAZZ_CHORDS: readonly (readonly number[])[] = [
   [220, 261.63, 311.13, 392],
 ];
 
-const WALKING_BASS = [
-  73.42, 92.5, 110, 123.47,
-  82.41, 98, 110, 138.59,
-  92.5, 110, 123.47, 138.59,
-  82.41, 98, 110, 123.47,
-] as const;
-
 const JAZZ_MELODIES: readonly (readonly [number, number][])[] = [
   [[0.5, 554.37], [1.25, 659.25], [3, 587.33], [4.5, 493.88], [5.25, 554.37], [7, 440], [8.75, 493.88], [10.5, 587.33], [12.25, 554.37], [13.5, 659.25], [15, 493.88]],
   [[0.75, 659.25], [2.5, 554.37], [3.25, 493.88], [5, 587.33], [6.5, 659.25], [8.25, 554.37], [9.5, 440], [11, 493.88], [12.75, 587.33], [14.25, 554.37], [15.25, 440]],
 ];
 
-function scheduleJazzNote(
+function schedulePianoNote(
   audio: AudioContext,
   destination: AudioNode,
   frequency: number,
@@ -143,8 +136,8 @@ function scheduleJazzNote(
   oscillator.type = type;
   oscillator.frequency.setValueAtTime(frequency, start);
   gain.gain.setValueAtTime(0.0001, start);
-  gain.gain.exponentialRampToValueAtTime(volume, start + 0.025);
-  gain.gain.setValueAtTime(volume * 0.58, start + Math.min(0.16, duration * 0.45));
+  gain.gain.exponentialRampToValueAtTime(volume, start + 0.11);
+  gain.gain.setValueAtTime(volume * 0.72, start + Math.max(0.12, duration - 0.38));
   gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
   oscillator.connect(gain);
   gain.connect(destination);
@@ -152,31 +145,11 @@ function scheduleJazzNote(
   oscillator.stop(start + duration + 0.02);
 }
 
-function scheduleBrush(audio: AudioContext, destination: AudioNode, start: number): void {
-  const frameCount = Math.floor(audio.sampleRate * 0.055);
-  const buffer = audio.createBuffer(1, frameCount, audio.sampleRate);
-  const samples = buffer.getChannelData(0);
-  for (let index = 0; index < samples.length; index += 1)
-    samples[index] = Math.random() * 2 - 1;
-  const source = audio.createBufferSource();
-  const filter = audio.createBiquadFilter();
-  const gain = audio.createGain();
-  source.buffer = buffer;
-  filter.type = "highpass";
-  filter.frequency.setValueAtTime(4_800, start);
-  gain.gain.setValueAtTime(0.006, start);
-  gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.055);
-  source.connect(filter);
-  filter.connect(gain);
-  gain.connect(destination);
-  source.start(start);
-}
-
 export function startGameMusic(): () => void {
   const audio = getContext();
   if (!audio) return () => undefined;
   const master = audio.createGain();
-  master.gain.setValueAtTime(0.68, audio.currentTime);
+  master.gain.setValueAtTime(0.6, audio.currentTime);
   master.connect(audio.destination);
   const cycleDuration = 16;
   let variation = 0;
@@ -184,28 +157,24 @@ export function startGameMusic(): () => void {
     JAZZ_CHORDS.forEach((chord, chordIndex) => {
       const chordStart = cycleStart + chordIndex * 2;
       chord.forEach((frequency, noteIndex) => {
-        scheduleJazzNote(
+        schedulePianoNote(
           audio,
           master,
           frequency,
-          chordStart + noteIndex * 0.025,
-          0.68,
-          0.012,
-          "triangle",
+          chordStart + noteIndex * 0.045,
+          2.22,
+          0.009,
+          "sine",
         );
+        schedulePianoNote(audio, master, frequency * 2, chordStart + noteIndex * 0.045, 1.7, 0.0025, "triangle");
       });
-    });
-    WALKING_BASS.forEach((frequency, index) => {
-      scheduleJazzNote(audio, master, frequency, cycleStart + index, 0.42, 0.025, "sine");
     });
     const melody = JAZZ_MELODIES[variation % JAZZ_MELODIES.length] ?? [];
     variation += 1;
     melody.forEach(([offset, frequency]) => {
-      scheduleJazzNote(audio, master, frequency, cycleStart + offset, 0.34, 0.017, "sine");
-      scheduleJazzNote(audio, master, frequency * 2, cycleStart + offset, 0.18, 0.004, "triangle");
+      schedulePianoNote(audio, master, frequency, cycleStart + offset, 0.92, 0.012, "sine");
+      schedulePianoNote(audio, master, frequency * 2, cycleStart + offset, 0.68, 0.003, "triangle");
     });
-    for (let beat = 0; beat < 32; beat += 1)
-      scheduleBrush(audio, master, cycleStart + beat * 0.5 + (beat % 2 === 1 ? 0.035 : 0));
   };
   let nextCycle = audio.currentTime + 0.08;
   scheduleCycle(nextCycle);

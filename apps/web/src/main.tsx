@@ -1,8 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 // @ts-expect-error Vite supports query-string imports used to invalidate tunnel caches.
-import { App } from "./App.tsx?v=elevator-jazz-39";
-import "./styles.css?v=elevator-jazz-39";
+import { App } from "./App.tsx?v=legato-piano-40";
+import "./styles.css?v=legato-piano-40";
 
 const root = document.querySelector<HTMLDivElement>("#root");
 
