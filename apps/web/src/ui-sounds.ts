@@ -78,22 +78,22 @@ function playEnterClick(): void {
   });
 }
 
-function pianoNote(audio: AudioContext, frequency: number, delay: number): void {
+function loungeNote(audio: AudioContext, frequency: number, delay: number): void {
   tone(audio, {
     frequency,
-    endFrequency: frequency * 0.995,
-    duration: 0.24,
+    endFrequency: frequency * 0.985,
+    duration: 0.32,
     delay,
-    volume: 0.06,
-    type: "triangle",
+    volume: 0.048,
+    type: "sine",
   });
   tone(audio, {
-    frequency: frequency * 2,
-    endFrequency: frequency * 1.99,
-    duration: 0.16,
+    frequency: frequency * 1.5,
+    endFrequency: frequency * 1.48,
+    duration: 0.2,
     delay,
-    volume: 0.018,
-    type: "sine",
+    volume: 0.014,
+    type: "triangle",
   });
 }
 
@@ -101,9 +101,9 @@ export function playWordSuccess(anagram: boolean): void {
   const audio = getContext();
   if (!audio) return;
   const notes = anagram
-    ? [523.25, 659.25, 783.99, 1046.5, 1318.51]
-    : [523.25, 659.25, 783.99];
-  notes.forEach((frequency, index) => pianoNote(audio, frequency, index * 0.115));
+    ? [293.66, 369.99, 554.37]
+    : [293.66, 369.99];
+  notes.forEach((frequency, index) => loungeNote(audio, frequency, index * 0.16));
 }
 
 export function installButtonSounds(): () => void {
