@@ -2,7 +2,10 @@
 # docker build -f apps/server/Dockerfile -t anagrams-server .
 FROM node:22-bookworm-slim AS build
 ENV COREPACK_HOME=/tmp/corepack
-RUN corepack enable
+RUN apt-get update \
+ && apt-get install --yes --no-install-recommends ffmpeg \
+ && rm -rf /var/lib/apt/lists/* \
+ && corepack enable
 WORKDIR /workspace
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY apps/server/package.json apps/server/package.json
@@ -15,7 +18,9 @@ COPY apps/web apps/web
 COPY database database
 COPY packages/game-engine packages/game-engine
 COPY packages/shared-types packages/shared-types
-RUN pnpm --filter @anagrams/game-engine build \
+RUN ffmpeg -i apps/web/public/audio/playful-piano-atmos.ogg \
+      -codec:a libmp3lame -b:a 160k apps/web/public/audio/playful-piano-atmos.mp3 \
+ && pnpm --filter @anagrams/game-engine build \
  && pnpm --filter @anagrams/shared-types build \
  && pnpm --filter @anagrams/web build \
  && pnpm --filter @anagrams/server build
