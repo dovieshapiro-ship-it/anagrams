@@ -191,6 +191,7 @@ export function installButtonSounds(): () => void {
     void playBackgroundMusic();
   };
   const handlePointerDown = (event: PointerEvent): void => {
+    void playBackgroundMusic();
     if (!(event.target instanceof Element)) return;
     const button = event.target.closest("button");
     if (!(button instanceof HTMLButtonElement) || button.disabled) return;
