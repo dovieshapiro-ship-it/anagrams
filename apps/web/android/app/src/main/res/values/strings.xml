@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Anagrams</string>
+    <string name="title_activity_main">Anagrams</string>
+    <string name="package_name">com.kiwigames.anagrams</string>
+    <string name="custom_url_scheme">com.kiwigames.anagrams</string>
+</resources>
