@@ -13,9 +13,17 @@ import type {
   SessionUser,
 } from "./api";
 // @ts-expect-error Vite supports query-string imports used to invalidate tunnel caches.
-import * as versionedApi from "./api.ts?v=expressive-piano-43";
+import * as versionedApi from "./api.ts?v=audio-controls-44";
 import { copyInvite } from "./invite-share";
-import { installButtonSounds, playWordSuccess, startGameMusic } from "./ui-sounds";
+import {
+  gameMusicEnabled,
+  installButtonSounds,
+  playWordSuccess,
+  setGameMusicEnabled,
+  setSoundEffectsEnabled,
+  soundEffectsEnabled,
+  startGameMusic,
+} from "./ui-sounds";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 const api = versionedApi as typeof import("./api");
@@ -50,6 +58,8 @@ export function App(): React.JSX.Element {
   });
   const automaticStartKey = useRef<string | undefined>(undefined);
   const sessionBootstrapStarted = useRef(false);
+  const [musicEnabled, setMusicEnabled] = useState(gameMusicEnabled);
+  const [soundsEnabled, setSoundsEnabled] = useState(soundEffectsEnabled);
 
   useEffect(() => installButtonSounds(), []);
 
@@ -384,6 +394,20 @@ export function App(): React.JSX.Element {
             error={error}
             onPlay={() => setLanding("mode")}
             onFriends={() => setLanding("friends")}
+            musicEnabled={musicEnabled}
+            soundsEnabled={soundsEnabled}
+            onToggleMusic={() => {
+              setMusicEnabled((enabled) => {
+                setGameMusicEnabled(!enabled);
+                return !enabled;
+              });
+            }}
+            onToggleSounds={() => {
+              setSoundsEnabled((enabled) => {
+                setSoundEffectsEnabled(!enabled);
+                return !enabled;
+              });
+            }}
             onSetPassword={async (password) => {
               await api.setPassword(password);
               setSession((current) => current ? { ...current, hasPassword: true } : current);
@@ -509,6 +533,10 @@ function StartScreen(props: {
   readonly error: string;
   readonly onPlay: () => void;
   readonly onFriends: () => void;
+  readonly musicEnabled: boolean;
+  readonly soundsEnabled: boolean;
+  readonly onToggleMusic: () => void;
+  readonly onToggleSounds: () => void;
   readonly onSetPassword: (password: string) => Promise<void>;
   readonly onLogout: () => void;
 }): React.JSX.Element {
@@ -520,7 +548,17 @@ function StartScreen(props: {
       <AnimatedAnagramsTitle id="start-title" />
       <div className="home-account">
         <button className="account-person-button" type="button" aria-label="Open player profile" aria-expanded={accountOpen} onClick={() => setAccountOpen((open) => !open)}><span className="person-symbol" aria-hidden="true" /></button>
-        {accountOpen && <div className="account-popover" role="dialog" aria-label="Player profile"><strong>{props.session.displayName}</strong><span>@{props.session.username ?? "choose_username"}</span><span>{props.session.wins} {props.session.wins === 1 ? "WIN" : "WINS"}</span>{!props.session.hasPassword && <form className="legacy-password" onSubmit={(event) => { event.preventDefault(); setPasswordStatus("SAVING…"); void props.onSetPassword(newPassword).then(() => { setPasswordStatus("PASSWORD SAVED"); setNewPassword(""); }).catch((caught: unknown) => setPasswordStatus(messageOf(caught))); }}><label htmlFor="legacy-password">SET A PASSWORD</label><input id="legacy-password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={8} maxLength={128} autoComplete="new-password" placeholder="8+ characters" /><button type="submit" disabled={newPassword.length < 8}>SAVE PASSWORD</button>{passwordStatus && <small>{passwordStatus}</small>}</form>}<button type="button" onClick={props.onFriends}>FRIENDS</button></div>}
+        {accountOpen && <div className="account-popover" role="dialog" aria-label="Player profile">
+          <strong>{props.session.displayName}</strong>
+          <span>@{props.session.username ?? "choose_username"}</span>
+          <span>{props.session.wins} {props.session.wins === 1 ? "WIN" : "WINS"}</span>
+          <div className="audio-preferences" aria-label="Audio settings">
+            <button className="audio-toggle" type="button" aria-label={`${props.musicEnabled ? "Turn off" : "Turn on"} game music`} aria-pressed={props.musicEnabled} data-enabled={props.musicEnabled} onClick={props.onToggleMusic}><span aria-hidden="true">♫</span></button>
+            <button className="audio-toggle" type="button" aria-label={`${props.soundsEnabled ? "Turn off" : "Turn on"} sound effects`} aria-pressed={props.soundsEnabled} data-enabled={props.soundsEnabled} onClick={props.onToggleSounds}><span aria-hidden="true">🔊</span></button>
+          </div>
+          {!props.session.hasPassword && <form className="legacy-password" onSubmit={(event) => { event.preventDefault(); setPasswordStatus("SAVING…"); void props.onSetPassword(newPassword).then(() => { setPasswordStatus("PASSWORD SAVED"); setNewPassword(""); }).catch((caught: unknown) => setPasswordStatus(messageOf(caught))); }}><label htmlFor="legacy-password">SET A PASSWORD</label><input id="legacy-password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={8} maxLength={128} autoComplete="new-password" placeholder="8+ characters" /><button type="submit" disabled={newPassword.length < 8}>SAVE PASSWORD</button>{passwordStatus && <small>{passwordStatus}</small>}</form>}
+          <button type="button" onClick={props.onFriends}>FRIENDS</button>
+        </div>}
       </div>
       <div className="mode-actions">
         <button className="table-button home-option-button pulse-button" type="button" onClick={props.onPlay}>

@@ -8,6 +8,40 @@ function audioContextConstructor(): AudioContextConstructor | undefined {
 }
 
 let context: AudioContext | undefined;
+const MUSIC_PREFERENCE = "anagrams:music-enabled";
+const SOUND_PREFERENCE = "anagrams:sound-enabled";
+
+function preference(key: string): boolean {
+  try {
+    return window.localStorage.getItem(key) !== "false";
+  } catch {
+    return true;
+  }
+}
+
+function savePreference(key: string, enabled: boolean): void {
+  try {
+    window.localStorage.setItem(key, String(enabled));
+  } catch {
+    // The setting still applies for the current React session if storage is unavailable.
+  }
+}
+
+export function gameMusicEnabled(): boolean {
+  return preference(MUSIC_PREFERENCE);
+}
+
+export function soundEffectsEnabled(): boolean {
+  return preference(SOUND_PREFERENCE);
+}
+
+export function setGameMusicEnabled(enabled: boolean): void {
+  savePreference(MUSIC_PREFERENCE, enabled);
+}
+
+export function setSoundEffectsEnabled(enabled: boolean): void {
+  savePreference(SOUND_PREFERENCE, enabled);
+}
 
 function getContext(): AudioContext | undefined {
   const Constructor = audioContextConstructor();
@@ -98,6 +132,7 @@ function loungeNote(audio: AudioContext, frequency: number, delay: number): void
 }
 
 export function playWordSuccess(anagram: boolean): void {
+  if (!soundEffectsEnabled()) return;
   const audio = getContext();
   if (!audio) return;
   const notes = anagram
@@ -155,6 +190,7 @@ function schedulePianoNote(
 }
 
 export function startGameMusic(): () => void {
+  if (!gameMusicEnabled()) return () => undefined;
   const audio = getContext();
   if (!audio) return () => undefined;
   const master = audio.createGain();
@@ -216,6 +252,7 @@ export function installButtonSounds(): () => void {
     if (!(event.target instanceof Element)) return;
     const button = event.target.closest("button");
     if (!(button instanceof HTMLButtonElement) || button.disabled) return;
+    if (!soundEffectsEnabled()) return;
     if (button.closest(".rack")) playTileClick();
     else if (button.classList.contains("enter-button")) playEnterClick();
     else playButtonClick();

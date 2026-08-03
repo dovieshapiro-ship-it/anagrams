@@ -1226,6 +1226,44 @@ input:focus-visible {
   letter-spacing: 0.1em;
 }
 
+.account-popover .audio-preferences {
+  display: flex;
+  gap: 8px;
+  margin-top: 7px;
+  padding-top: 8px;
+  border-top: 1px solid rgb(117 85 31 / 35%);
+}
+
+.account-popover .audio-toggle {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  padding: 0;
+  border-radius: 50%;
+  font: 700 1.05rem/1 Georgia, serif;
+  letter-spacing: 0;
+}
+
+.account-popover .audio-toggle[data-enabled="false"] {
+  color: #c9bfa8;
+  background: #68645b;
+  border-color: #8c8068;
+  box-shadow: none;
+}
+
+.account-popover .audio-toggle[data-enabled="false"]::after {
+  content: "";
+  position: absolute;
+  width: 23px;
+  height: 2px;
+  background: #f4e8c9;
+  transform: rotate(-42deg);
+  border-radius: 2px;
+}
+
 .legacy-password {
   display: flex;
   flex-direction: column;
