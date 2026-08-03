@@ -169,7 +169,7 @@ input:focus-visible {
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: title-letter-streak 20s ease-in-out infinite;
+  animation: title-letter-streak 10s ease-in-out infinite;
 }
 @keyframes title-letter-streak {
   0%, 91% { background-position: 105% 50%; }
@@ -1035,7 +1035,14 @@ input:focus-visible {
   min-width: min(68vw, 250px);
   padding: 10px 20px;
   font-size: clamp(0.8rem, 3.2vw, 1rem);
-  animation: play-button-breathe 10s ease-in-out infinite;
+}
+
+.pulse-button:not(:disabled) {
+  animation: play-button-breathe 5s ease-in-out infinite;
+}
+
+.pulse-button:active {
+  animation: none;
 }
 
 @keyframes play-button-breathe {
@@ -1047,6 +1054,40 @@ input:focus-visible {
 .start-screen:not(.auth-screen) .mode-actions .home-option-button:active {
   animation: none;
   transform: translateY(2px) scale(0.98);
+}
+
+.result-column[data-winner="true"] h2,
+.praise-card strong {
+  color: transparent;
+  background-image: linear-gradient(
+    110deg,
+    currentColor 0 42%,
+    #c18c29 47%,
+    #fff4bd 50%,
+    #c18c29 53%,
+    currentColor 58% 100%
+  );
+  background-position: 105% 50%;
+  background-size: 500% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: result-text-shimmer 5s ease-in-out infinite;
+}
+
+.result-column[data-winner="true"] h2 {
+  --shimmer-base: #183a2c;
+  background-image: linear-gradient(110deg, var(--shimmer-base) 0 42%, #c18c29 47%, #fff4bd 50%, #c18c29 53%, var(--shimmer-base) 58% 100%);
+}
+
+.praise-card strong {
+  --shimmer-base: #17372b;
+  background-image: linear-gradient(110deg, var(--shimmer-base) 0 42%, #c18c29 47%, #fff4bd 50%, #c18c29 53%, var(--shimmer-base) 58% 100%);
+}
+
+@keyframes result-text-shimmer {
+  0%, 72% { background-position: 105% 50%; }
+  92%, 100% { background-position: -5% 50%; }
 }
 
 .start-screen:not(.auth-screen) .mode-actions .friends-link {
@@ -2468,7 +2509,9 @@ input:focus-visible {
 }
 @media (prefers-reduced-motion: reduce) {
   .animated-title,
-  .start-screen:not(.auth-screen) .mode-actions .home-option-button {
+  .pulse-button,
+  .result-column[data-winner="true"] h2,
+  .praise-card strong {
     animation: none;
     background-position: 105% 50%;
   }

@@ -13,7 +13,7 @@ import type {
   SessionUser,
 } from "./api";
 // @ts-expect-error Vite supports query-string imports used to invalidate tunnel caches.
-import * as versionedApi from "./api.ts?v=gold-streak-32";
+import * as versionedApi from "./api.ts?v=motion-timing-33";
 import { copyInvite } from "./invite-share";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -520,7 +520,7 @@ function StartScreen(props: {
         {accountOpen && <div className="account-popover" role="dialog" aria-label="Player profile"><strong>{props.session.displayName}</strong><span>@{props.session.username ?? "choose_username"}</span><span>{props.session.wins} {props.session.wins === 1 ? "WIN" : "WINS"}</span>{!props.session.hasPassword && <form className="legacy-password" onSubmit={(event) => { event.preventDefault(); setPasswordStatus("SAVING…"); void props.onSetPassword(newPassword).then(() => { setPasswordStatus("PASSWORD SAVED"); setNewPassword(""); }).catch((caught: unknown) => setPasswordStatus(messageOf(caught))); }}><label htmlFor="legacy-password">SET A PASSWORD</label><input id="legacy-password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={8} maxLength={128} autoComplete="new-password" placeholder="8+ characters" /><button type="submit" disabled={newPassword.length < 8}>SAVE PASSWORD</button>{passwordStatus && <small>{passwordStatus}</small>}</form>}<button type="button" onClick={props.onFriends}>FRIENDS</button></div>}
       </div>
       <div className="mode-actions">
-        <button className="table-button home-option-button" type="button" onClick={props.onPlay}>
+        <button className="table-button home-option-button pulse-button" type="button" onClick={props.onPlay}>
           PLAY
         </button>
       </div>
@@ -550,8 +550,8 @@ function GameModeScreen(props: {
       <button className="round-back" type="button" onClick={props.onBack} aria-label="Back to home">←</button>
       <h1 id="mode-title" className="screen-title">PLAY</h1>
       <div className="mode-choice-actions">
-        <button className="table-button" type="button" onClick={props.onSolo}>SOLO</button>
-        <button className="table-button multiplayer-choice" type="button" onClick={props.onMultiplayer}>
+        <button className="table-button pulse-button" type="button" onClick={props.onSolo}>SOLO</button>
+        <button className="table-button multiplayer-choice pulse-button" type="button" onClick={props.onMultiplayer}>
           MULTIPLAYER
           {props.invitationCount > 0 && <span className="friend-badge" aria-label={`${String(props.invitationCount)} pending game invitations`}>{props.invitationCount}</span>}
         </button>
@@ -609,7 +609,7 @@ function RulesScreen(props: {
           </p>
         </div>
       </div>
-      <button className="table-button" type="button" onClick={props.onPlay}>
+      <button className="table-button pulse-button" type="button" onClick={props.onPlay}>
         START ROUND
       </button>
     </section>
@@ -942,7 +942,7 @@ function WaitingScreen(props: {
               {waitingOpponent && outgoingStatus !== "declined" && <WaitingCopy />}
               {outgoingStatus === "declined" && <p className="friend-message" role="status">{invitedFriend?.displayName ?? "Your friend"} declined the game request. This room is closed.</p>}
               <button
-                className="table-button direct-start-button"
+                className="table-button direct-start-button pulse-button"
                 type="button"
                 onClick={outgoingStatus === "declined" ? props.onExit : canStart ? props.onStart : props.onReady}
                 disabled={props.busy || (outgoingStatus !== "declined" && (waitingOpponent || (!canStart && !needsReady)))}
@@ -979,7 +979,7 @@ function WaitingScreen(props: {
           ) : canStart ? (
             <>
               <button
-                className="table-button"
+                className="table-button pulse-button"
                 type="button"
                 onClick={props.onStart}
                 disabled={props.busy}
@@ -990,7 +990,7 @@ function WaitingScreen(props: {
           ) : needsReady ? (
             <>
               <button
-                className="table-button"
+                className="table-button pulse-button"
                 type="button"
                 onClick={props.onReady}
                 disabled={props.busy}
