@@ -27,6 +27,7 @@ RUN groupadd --system anagrams && useradd --system --gid anagrams --home /nonexi
 COPY --from=build --chown=anagrams:anagrams /workspace/node_modules ./node_modules
 COPY --from=build --chown=anagrams:anagrams /workspace/apps/server/node_modules ./apps/server/node_modules
 COPY --from=build --chown=anagrams:anagrams /workspace/packages/game-engine/node_modules ./packages/game-engine/node_modules
+COPY --from=build --chown=anagrams:anagrams /workspace/packages/shared-types/node_modules ./packages/shared-types/node_modules
 COPY --from=build --chown=anagrams:anagrams /workspace/apps/server/package.json ./apps/server/package.json
 COPY --from=build --chown=anagrams:anagrams /workspace/apps/server/dist ./apps/server/dist
 COPY --from=build --chown=anagrams:anagrams /workspace/apps/web/dist ./apps/web/dist
