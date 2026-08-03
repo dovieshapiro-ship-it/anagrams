@@ -13,8 +13,9 @@ import type {
   SessionUser,
 } from "./api";
 // @ts-expect-error Vite supports query-string imports used to invalidate tunnel caches.
-import * as versionedApi from "./api.ts?v=motion-timing-33";
+import * as versionedApi from "./api.ts?v=button-sounds-34";
 import { copyInvite } from "./invite-share";
+import { installButtonSounds } from "./ui-sounds";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 const api = versionedApi as typeof import("./api");
@@ -49,6 +50,8 @@ export function App(): React.JSX.Element {
   });
   const automaticStartKey = useRef<string | undefined>(undefined);
   const sessionBootstrapStarted = useRef(false);
+
+  useEffect(() => installButtonSounds(), []);
 
   useEffect(() => {
     if (sessionBootstrapStarted.current) return;
