@@ -90,7 +90,7 @@ describe("rack interactions", () => {
         screen.queryByRole("textbox", { name: /enter your word/i }),
       ).not.toBeInTheDocument(),
     );
-    fireEvent.click(screen.getByRole("listitem", { name: /L tile, available/i }));
+    fireEvent.click(screen.getByRole("button", { name: /L tile, available/i }));
     expect(screen.getByRole("button", { name: /selected word/i })).toHaveTextContent(
       "l",
     );
@@ -98,7 +98,7 @@ describe("rack interactions", () => {
 
   it("tracks duplicate tiles independently and restores the activated used tile", () => {
     setup();
-    const es = screen.getAllByRole("listitem", { name: /E tile, available/i });
+    const es = screen.getAllByRole("button", { name: /E tile, available/i });
     const first = es[0];
     const second = es[1];
     if (!first || !second) throw new Error("Expected two E tiles");
@@ -124,7 +124,7 @@ describe("rack interactions", () => {
 
   it("resets every tile after a rejected submission", async () => {
     setup(vi.fn().mockResolvedValue(response(false)));
-    const tile = screen.getByRole("listitem", { name: /L tile, available/i });
+    const tile = screen.getByRole("button", { name: /L tile, available/i });
     fireEvent.click(tile);
     fireEvent.click(screen.getByRole("button", { name: /^enter$/i }));
     await waitFor(() => expect(tile).toHaveAttribute("aria-pressed", "false"));
@@ -135,7 +135,7 @@ describe("rack interactions", () => {
 
   it("preserves selected tiles when the transport fails", async () => {
     setup(vi.fn().mockRejectedValue(new Error("Offline")));
-    const tile = screen.getByRole("listitem", { name: /L tile, available/i });
+    const tile = screen.getByRole("button", { name: /L tile, available/i });
     fireEvent.click(tile);
     fireEvent.click(screen.getByRole("button", { name: /^enter$/i }));
     await waitFor(() => expect(screen.getByText("Offline")).toBeVisible());
@@ -148,7 +148,7 @@ describe("rack interactions", () => {
   it("shows a one-second six-letter toast and soft slot illumination", async () => {
     vi.useFakeTimers();
     setup();
-    for (const tile of screen.getAllByRole("listitem")) fireEvent.click(tile);
+    for (const tile of screen.getAllByRole("button", { name: /tile,/i })) fireEvent.click(tile);
     fireEvent.click(screen.getByRole("button", { name: /^enter$/i }));
     await act(async () => Promise.resolve());
     expect(screen.getByRole("status")).toHaveTextContent("Anagram found!");

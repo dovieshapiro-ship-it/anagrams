@@ -31,6 +31,9 @@ button {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
+button:not(:disabled):active {
+  transform: translateY(2px);
+}
 button:focus-visible,
 input:focus-visible {
   outline: 3px solid #fff2b8;
@@ -1248,14 +1251,14 @@ input:focus-visible {
       rgba(0, 0, 0, 0.025) 9px 10px
     );
   box-shadow:
-    inset 0 0 90px #061811,
-    0 0 28px rgba(0, 0, 0, 0.8);
-  animation: screen-arrive 280ms ease-out both;
+    inset 0 0 48px #061811,
+    0 0 18px rgba(0, 0, 0, 0.68);
+  animation: screen-arrive 160ms ease-out both;
 }
 @keyframes screen-arrive {
   from {
     opacity: 0;
-    transform: translateY(5px);
+    transform: translateY(2px);
   }
   to {
     opacity: 1;
@@ -1470,7 +1473,6 @@ input:focus-visible {
   place-items: center;
   padding: 22px;
   background: rgba(4, 16, 11, 0.72);
-  backdrop-filter: blur(2px);
 }
 .modal-panel {
   width: min(92vw, 390px);

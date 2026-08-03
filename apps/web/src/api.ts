@@ -166,7 +166,9 @@ const outgoingFriendInvitationSchema = runtimeSchema<{
   return Boolean(
     item &&
       (item.friend === null || friend(item.friend)) &&
-      (item.status === null || ["pending", "accepted", "declined"].includes(String(item.status))),
+      (item.status === null ||
+        (typeof item.status === "string" &&
+          ["pending", "accepted", "declined"].includes(item.status))),
   );
 });
 const joinedFriendInvitationSchema = runtimeSchema<{ readonly gameId: string }>(

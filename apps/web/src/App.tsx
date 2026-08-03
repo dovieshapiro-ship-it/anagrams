@@ -13,7 +13,7 @@ import type {
   SessionUser,
 } from "./api";
 // @ts-expect-error Vite supports query-string imports used to invalidate tunnel caches.
-import * as versionedApi from "./api.ts?v=invitation-flow-27";
+import * as versionedApi from "./api.ts?v=flow-audit-28";
 import { copyInvite } from "./invite-share";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -147,7 +147,7 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     if (!gameId || !state) return undefined;
     const active = state.me.round?.status === "active";
-    const timer = window.setInterval(() => void load(), active ? 1_000 : 2_500);
+    const timer = window.setInterval(() => void load(), active ? 2_000 : 2_500);
     const recover = (): void => {
       if (!document.hidden) void load();
     };
@@ -907,7 +907,7 @@ function WaitingScreen(props: {
   const invitedFriend = props.invitedFriendId
     ? friends.find((friend) => friend.userId === props.invitedFriendId)
     : outgoingFriend ?? undefined;
-  const directFriendMatch = Boolean(props.invitedFriendId || outgoingFriend);
+  const directFriendMatch = Boolean(props.invitedFriendId ?? outgoingFriend);
   async function copy(): Promise<void> {
     const invitation = props.invitation ?? (await props.onInvite());
     if (!invitation) return;
@@ -1076,7 +1076,7 @@ export function PlayScreen(props: {
   useEffect(() => {
     const timer = window.setInterval(
       () => setSeconds(remaining(props.state)),
-      250,
+      1_000,
     );
     return () => window.clearInterval(timer);
   }, [props.state]);
@@ -1220,20 +1220,14 @@ export function PlayScreen(props: {
           {props.error || feedback}
         </p>
       </form>
-      <div className="rack" role="list" aria-label="Available letters">
+      <div className="rack" role="group" aria-label="Available letters">
         {rack.map((tile) => (
           <button
-            role="listitem"
             type="button"
             key={String(tile.id)}
             data-used={selected.includes(tile.id)}
             aria-pressed={selected.includes(tile.id)}
-            aria-disabled={selected.includes(tile.id)}
             aria-label={`${tile.letter.toUpperCase()} tile, ${selected.includes(tile.id) ? "used; activate to return" : "available"}`}
-            onPointerDown={() => {
-              if (document.activeElement instanceof HTMLInputElement)
-                document.activeElement.blur();
-            }}
             onClick={() => toggleTile(tile.id)}
           >
             {tile.letter}
