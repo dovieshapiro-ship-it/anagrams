@@ -1262,6 +1262,15 @@ input:focus-visible {
   fill: none;
 }
 
+.account-popover .audio-toggle .music-stem {
+  fill: none;
+  stroke-width: 2.2;
+}
+
+.account-popover .audio-toggle .music-note-icon ellipse {
+  stroke: none;
+}
+
 .account-popover .audio-toggle[data-enabled="false"] {
   color: #c9bfa8;
   background: #68645b;
