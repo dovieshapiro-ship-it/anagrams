@@ -155,45 +155,25 @@ input:focus-visible {
 }
 .animated-title {
   position: relative;
-  display: flex;
-  justify-content: center;
-  gap: 0.045em;
-  overflow: hidden;
+  color: transparent;
+  background-image: linear-gradient(
+    110deg,
+    var(--gold-light) 0 43%,
+    #fff4bd 48%,
+    #fff9dc 50%,
+    #fff4bd 52%,
+    var(--gold-light) 57% 100%
+  );
+  background-position: 105% 50%;
+  background-size: 500% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: title-letter-streak 20s ease-in-out infinite;
 }
-.animated-title span {
-  display: inline-block;
-  transition:
-    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 260ms ease,
-    filter 320ms ease;
-}
-.animated-title--shuffle span:nth-child(odd) {
-  transform: translateY(-4px) rotate(-3deg);
-}
-.animated-title--shuffle span:nth-child(even) {
-  transform: translateY(4px) rotate(3deg);
-}
-.animated-title--shuffle span:nth-child(3n) {
-  filter: brightness(1.22);
-}
-.animated-title::after {
-  content: "";
-  position: absolute;
-  inset: -20% auto -20% -35%;
-  width: 24%;
-  pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgba(255, 235, 164, 0.82), transparent);
-  opacity: 0;
-  transform: skewX(-18deg);
-}
-.animated-title--glow::after {
-  animation: title-light-sweep 1.15s ease-in-out both;
-}
-@keyframes title-light-sweep {
-  0% { left: -35%; opacity: 0; }
-  18% { opacity: 0.82; }
-  82% { opacity: 0.82; }
-  100% { left: 112%; opacity: 0; }
+@keyframes title-letter-streak {
+  0%, 91% { background-position: 105% 50%; }
+  98%, 100% { background-position: -5% 50%; }
 }
 .brand-mark {
   margin: 12px 0 48px;
@@ -2487,12 +2467,10 @@ input:focus-visible {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .animated-title span,
-  .animated-title--glow::after,
+  .animated-title,
   .start-screen:not(.auth-screen) .mode-actions .home-option-button {
     animation: none;
-    transition: none;
-    transform: none;
+    background-position: 105% 50%;
   }
   .rack button,
   .word-slots span {

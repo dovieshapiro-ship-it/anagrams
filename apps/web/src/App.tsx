@@ -13,7 +13,7 @@ import type {
   SessionUser,
 } from "./api";
 // @ts-expect-error Vite supports query-string imports used to invalidate tunnel caches.
-import * as versionedApi from "./api.ts?v=animated-title-31";
+import * as versionedApi from "./api.ts?v=gold-streak-32";
 import { copyInvite } from "./invite-share";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -682,44 +682,10 @@ function AuthScreen(props: {
   );
 }
 
-const ANAGRAMS_LETTERS = Array.from("ANAGRAMS");
-
-function shuffledAnagrams(): readonly string[] {
-  const shuffled = [...ANAGRAMS_LETTERS];
-  for (let index = shuffled.length - 1; index > 0; index -= 1) {
-    const target = Math.floor(Math.random() * (index + 1));
-    [shuffled[index], shuffled[target]] = [shuffled[target] ?? "", shuffled[index] ?? ""];
-  }
-  return shuffled.join("") === "ANAGRAMS"
-    ? ["M", "A", "N", "A", "G", "R", "A", "S"]
-    : shuffled;
-}
-
 function AnimatedAnagramsTitle(props: { readonly id: string }): React.JSX.Element {
-  const [letters, setLetters] = useState<readonly string[]>(ANAGRAMS_LETTERS);
-  const [phase, setPhase] = useState<"idle" | "shuffle" | "glow">("idle");
-  useEffect(() => {
-    let restoreTimer: number | undefined;
-    let idleTimer: number | undefined;
-    const animate = (): void => {
-      setLetters(shuffledAnagrams());
-      setPhase("shuffle");
-      restoreTimer = window.setTimeout(() => {
-        setLetters(ANAGRAMS_LETTERS);
-        setPhase("glow");
-        idleTimer = window.setTimeout(() => setPhase("idle"), 1_250);
-      }, 2_000);
-    };
-    const cycle = window.setInterval(animate, 20_000);
-    return () => {
-      window.clearInterval(cycle);
-      if (restoreTimer !== undefined) window.clearTimeout(restoreTimer);
-      if (idleTimer !== undefined) window.clearTimeout(idleTimer);
-    };
-  }, []);
   return (
-    <h1 id={props.id} className={`animated-title animated-title--${phase}`} aria-label="ANAGRAMS">
-      {letters.map((letter, index) => <span key={String(index)} aria-hidden="true">{letter}</span>)}
+    <h1 id={props.id} className="animated-title" aria-label="ANAGRAMS">
+      ANAGRAMS
     </h1>
   );
 }
