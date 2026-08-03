@@ -13,7 +13,7 @@ import type {
   SessionUser,
 } from "./api";
 // @ts-expect-error Vite supports query-string imports used to invalidate tunnel caches.
-import * as versionedApi from "./api.ts?v=design-refine-30";
+import * as versionedApi from "./api.ts?v=animated-title-31";
 import { copyInvite } from "./invite-share";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -514,7 +514,7 @@ function StartScreen(props: {
   const [passwordStatus, setPasswordStatus] = useState("");
   return (
     <section className="start-screen screen" aria-labelledby="start-title">
-      <h1 id="start-title">ANAGRAMS</h1>
+      <AnimatedAnagramsTitle id="start-title" />
       <div className="home-account">
         <button className="account-person-button" type="button" aria-label="Open player profile" aria-expanded={accountOpen} onClick={() => setAccountOpen((open) => !open)}><span className="person-symbol" aria-hidden="true" /></button>
         {accountOpen && <div className="account-popover" role="dialog" aria-label="Player profile"><strong>{props.session.displayName}</strong><span>@{props.session.username ?? "choose_username"}</span><span>{props.session.wins} {props.session.wins === 1 ? "WIN" : "WINS"}</span>{!props.session.hasPassword && <form className="legacy-password" onSubmit={(event) => { event.preventDefault(); setPasswordStatus("SAVING…"); void props.onSetPassword(newPassword).then(() => { setPasswordStatus("PASSWORD SAVED"); setNewPassword(""); }).catch((caught: unknown) => setPasswordStatus(messageOf(caught))); }}><label htmlFor="legacy-password">SET A PASSWORD</label><input id="legacy-password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={8} maxLength={128} autoComplete="new-password" placeholder="8+ characters" /><button type="submit" disabled={newPassword.length < 8}>SAVE PASSWORD</button>{passwordStatus && <small>{passwordStatus}</small>}</form>}<button type="button" onClick={props.onFriends}>FRIENDS</button></div>}
@@ -639,7 +639,7 @@ function AuthScreen(props: {
     return (
       <section className="auth-screen start-screen screen" aria-labelledby="welcome-title">
         <div className="auth-brand-cluster">
-          <h1 id="welcome-title">ANAGRAMS</h1>
+          <AnimatedAnagramsTitle id="welcome-title" />
         </div>
         <div className="mode-actions">
           <button className="table-button" type="button" onClick={() => props.onView("login")}>LOG IN</button>
@@ -679,6 +679,48 @@ function AuthScreen(props: {
       </form>
       <button className="round-back" type="button" onClick={() => props.onView("welcome")} aria-label="Back to welcome">←</button>
     </section>
+  );
+}
+
+const ANAGRAMS_LETTERS = Array.from("ANAGRAMS");
+
+function shuffledAnagrams(): readonly string[] {
+  const shuffled = [...ANAGRAMS_LETTERS];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const target = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[target]] = [shuffled[target] ?? "", shuffled[index] ?? ""];
+  }
+  return shuffled.join("") === "ANAGRAMS"
+    ? ["M", "A", "N", "A", "G", "R", "A", "S"]
+    : shuffled;
+}
+
+function AnimatedAnagramsTitle(props: { readonly id: string }): React.JSX.Element {
+  const [letters, setLetters] = useState<readonly string[]>(ANAGRAMS_LETTERS);
+  const [phase, setPhase] = useState<"idle" | "shuffle" | "glow">("idle");
+  useEffect(() => {
+    let restoreTimer: number | undefined;
+    let idleTimer: number | undefined;
+    const animate = (): void => {
+      setLetters(shuffledAnagrams());
+      setPhase("shuffle");
+      restoreTimer = window.setTimeout(() => {
+        setLetters(ANAGRAMS_LETTERS);
+        setPhase("glow");
+        idleTimer = window.setTimeout(() => setPhase("idle"), 1_250);
+      }, 2_000);
+    };
+    const cycle = window.setInterval(animate, 20_000);
+    return () => {
+      window.clearInterval(cycle);
+      if (restoreTimer !== undefined) window.clearTimeout(restoreTimer);
+      if (idleTimer !== undefined) window.clearTimeout(idleTimer);
+    };
+  }, []);
+  return (
+    <h1 id={props.id} className={`animated-title animated-title--${phase}`} aria-label="ANAGRAMS">
+      {letters.map((letter, index) => <span key={String(index)} aria-hidden="true">{letter}</span>)}
+    </h1>
   );
 }
 

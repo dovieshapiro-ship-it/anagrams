@@ -153,6 +153,48 @@ input:focus-visible {
     0 3px 0 #5f461d,
     0 7px 16px rgba(0, 0, 0, 0.6);
 }
+.animated-title {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  gap: 0.045em;
+  overflow: hidden;
+}
+.animated-title span {
+  display: inline-block;
+  transition:
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 260ms ease,
+    filter 320ms ease;
+}
+.animated-title--shuffle span:nth-child(odd) {
+  transform: translateY(-4px) rotate(-3deg);
+}
+.animated-title--shuffle span:nth-child(even) {
+  transform: translateY(4px) rotate(3deg);
+}
+.animated-title--shuffle span:nth-child(3n) {
+  filter: brightness(1.22);
+}
+.animated-title::after {
+  content: "";
+  position: absolute;
+  inset: -20% auto -20% -35%;
+  width: 24%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 235, 164, 0.82), transparent);
+  opacity: 0;
+  transform: skewX(-18deg);
+}
+.animated-title--glow::after {
+  animation: title-light-sweep 1.15s ease-in-out both;
+}
+@keyframes title-light-sweep {
+  0% { left: -35%; opacity: 0; }
+  18% { opacity: 0.82; }
+  82% { opacity: 0.82; }
+  100% { left: 112%; opacity: 0; }
+}
 .brand-mark {
   margin: 12px 0 48px;
   color: #e9dfc7;
@@ -1013,6 +1055,18 @@ input:focus-visible {
   min-width: min(68vw, 250px);
   padding: 10px 20px;
   font-size: clamp(0.8rem, 3.2vw, 1rem);
+  animation: play-button-breathe 10s ease-in-out infinite;
+}
+
+@keyframes play-button-breathe {
+  0%, 84%, 100% { transform: scale(1); }
+  89% { transform: scale(1.045); }
+  94% { transform: scale(1); }
+}
+
+.start-screen:not(.auth-screen) .mode-actions .home-option-button:active {
+  animation: none;
+  transform: translateY(2px) scale(0.98);
 }
 
 .start-screen:not(.auth-screen) .mode-actions .friends-link {
@@ -2433,6 +2487,13 @@ input:focus-visible {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .animated-title span,
+  .animated-title--glow::after,
+  .start-screen:not(.auth-screen) .mode-actions .home-option-button {
+    animation: none;
+    transition: none;
+    transform: none;
+  }
   .rack button,
   .word-slots span {
     transition: none;
