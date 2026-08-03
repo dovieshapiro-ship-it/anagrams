@@ -13,7 +13,7 @@ import type {
   SessionUser,
 } from "./api";
 // @ts-expect-error Vite supports query-string imports used to invalidate tunnel caches.
-import * as versionedApi from "./api.ts?v=clean-public-29";
+import * as versionedApi from "./api.ts?v=design-refine-30";
 import { copyInvite } from "./invite-share";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -675,7 +675,7 @@ function AuthScreen(props: {
           {props.busy ? "PLEASE WAIT…" : signup ? "CREATE ACCOUNT" : "LOG IN"}
         </button>
         <StatusMessage error={props.error} />
-        <button className="text-link" type="button" onClick={() => props.onView(signup ? "login" : "signup")}>{signup ? "ALREADY A MEMBER? LOG IN" : "NEW HERE? CREATE ACCOUNT"}</button>
+        <button className={`text-link${signup ? " member-link" : ""}`} type="button" onClick={() => props.onView(signup ? "login" : "signup")}>{signup ? "ALREADY A MEMBER? LOG IN" : "NEW HERE? CREATE ACCOUNT"}</button>
       </form>
       <button className="round-back" type="button" onClick={() => props.onView("welcome")} aria-label="Back to welcome">←</button>
     </section>
@@ -799,7 +799,7 @@ export function FriendsScreen(props: {
       <button className="round-back" type="button" onClick={props.onBack} aria-label="Back to home">←</button>
       <h1 id="friends-title" className="screen-title">{managing ? "FRIENDS" : "MULTIPLAYER"}</h1>
       <div className="ivory-panel friends-sheet">
-        {!managing && <div className="multiplayer-heading"><h2>CHOOSE A FRIEND</h2><button className="add-person-button" type="button" aria-label="Find and add people" onClick={() => setManageOpen((open) => !open)}><span className="person-symbol" aria-hidden="true" /><b aria-hidden="true">+</b></button></div>}
+        {!managing && <div className="multiplayer-heading"><h2>CHOOSE A FRIEND</h2><button className="add-person-button" type="button" aria-label="Find and add people" onClick={() => setManageOpen((open) => !open)}>+</button></div>}
         {gameInvites.length > 0 && <FriendSection title="GAME INVITATIONS">{gameInvites.map((invite) => <FriendRow key={invite.id} friend={invite.inviter} detail="invited you to play" actions={<><button type="button" disabled={Boolean(busyId)} onClick={() => void run(invite.id, async () => props.onJoin(await api.acceptFriendGameInvitation(invite.id)))}>JOIN</button><button type="button" className="quiet-action" disabled={Boolean(busyId)} onClick={() => void run(invite.id, () => api.declineFriendGameInvitation(invite.id))}>DECLINE</button></>} />)}</FriendSection>}
         {(data?.incomingRequests.length ?? 0) > 0 && <FriendSection title="FRIEND REQUESTS">{data?.incomingRequests.map((request) => <FriendRow key={request.id} friend={request.user} detail={`@${request.user.username}`} actions={<><button type="button" disabled={Boolean(busyId)} onClick={() => void run(request.id, () => api.respondToFriendRequest(request.id, "accept"))}>ACCEPT</button><button type="button" className="quiet-action" disabled={Boolean(busyId)} onClick={() => void run(request.id, () => api.respondToFriendRequest(request.id, "decline"))}>DECLINE</button></>} />)}</FriendSection>}
         <FriendSection title="YOUR FRIENDS">{data?.friends.length ? data.friends.map((friend) => <FriendRow key={friend.userId} friend={friend} detail={`@${friend.username}`} actions={managing ? <button type="button" className="quiet-action" disabled={Boolean(busyId)} onClick={() => void run(friend.userId, () => api.removeFriend(friend.userId))}>REMOVE</button> : <button type="button" disabled={Boolean(busyId)} onClick={() => void run(`play-${friend.userId}`, async () => { await props.onPlayFriend?.(friend.userId); })}>{busyId === `play-${friend.userId}` ? "SENDING…" : "PLAY"}</button>} />) : <p className="empty-friends">Add a friend to start a multiplayer game.</p>}</FriendSection>

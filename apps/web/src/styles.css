@@ -679,8 +679,8 @@ input:focus-visible {
 }
 
 .auth-secondary {
-  background: var(--ivory);
-  color: var(--felt);
+  color: #f7eac4;
+  background: linear-gradient(#8c2e2d, var(--oxblood));
 }
 
 .auth-seal {
@@ -999,7 +999,8 @@ input:focus-visible {
 }
 .mode-actions .table-button {
   margin: 0;
-  min-width: 285px;
+  width: min(78vw, 285px);
+  min-width: 0;
   font-size: 1.22rem;
 }
 
@@ -1062,25 +1063,17 @@ input:focus-visible {
 }
 
 .add-person-button {
-  position: relative;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   flex: 0 0 auto;
   align-self: center;
-  color: #f4e8c9;
-  background: #8b2429;
-  border: 2px solid #c89327;
-  border-radius: 50%;
-  box-shadow: 0 4px 8px rgb(35 20 10 / 28%);
-  font: 700 1rem Georgia, serif;
-}
-
-.add-person-button b {
-  position: absolute;
-  right: 2px;
-  top: -2px;
-  font: 700 0.72rem Arial, sans-serif;
+  color: var(--oxblood);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  font: 700 2rem/1 Georgia, serif;
+  cursor: pointer;
 }
 
 .person-symbol::before {
@@ -1695,6 +1688,7 @@ input:focus-visible {
 .result-column h2 {
   font-size: 1.35rem;
   color: #183a2c;
+  text-transform: uppercase;
 }
 .final-score {
   font-size: 2.7rem;
@@ -1851,12 +1845,12 @@ input:focus-visible {
   grid-template-rows: auto auto auto 1fr;
   justify-items: center;
   min-height: 100dvh;
-  padding: max(72px, env(safe-area-inset-top)) 24px
+  padding: max(104px, calc(env(safe-area-inset-top) + 74px)) 24px
     max(28px, env(safe-area-inset-bottom));
 }
 
 .auth-screen:not(.start-screen) .screen-title {
-  font-size: clamp(1.9rem, 8vw, 2.5rem);
+  font-size: clamp(1.55rem, 6.8vw, 2.05rem);
   margin: 0;
   white-space: nowrap;
 }
@@ -1908,6 +1902,11 @@ input:focus-visible {
   font-size: clamp(0.78rem, 3.3vw, 0.95rem);
   justify-self: center;
   margin-top: 6px;
+}
+
+.auth-sheet .member-link {
+  font-size: clamp(0.66rem, 2.8vw, 0.78rem);
+  letter-spacing: 0.04em;
 }
 
 /* Signed-in home: centered greeting, isolated trophy and logout controls. */
@@ -2075,6 +2074,7 @@ input:focus-visible {
 .friends-sheet {
   width: 100%;
   max-height: calc(100dvh - 210px);
+  margin-top: 30px;
   padding: 18px;
   overflow-y: auto;
   text-align: left;
@@ -2362,7 +2362,7 @@ input:focus-visible {
     margin-block: 13px 15px;
   }
   .auth-screen:not(.start-screen) {
-    padding-top: 54px;
+    padding-top: 86px;
   }
 }
 
