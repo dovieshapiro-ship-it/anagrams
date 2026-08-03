@@ -162,7 +162,7 @@ export function playWordSuccess(anagram: boolean): void {
 let backgroundMusic: HTMLAudioElement | undefined;
 
 function getBackgroundMusic(): HTMLAudioElement {
-  backgroundMusic ??= new Audio("/audio/playful-piano-atmos.ogg");
+  backgroundMusic ??= new Audio("/audio/playful-piano-atmos.mp3");
   backgroundMusic.loop = true;
   backgroundMusic.preload = "auto";
   backgroundMusic.volume = 0.32;
