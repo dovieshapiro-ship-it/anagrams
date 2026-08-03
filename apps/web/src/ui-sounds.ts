@@ -156,23 +156,27 @@ export function playWordSuccess(anagram: boolean): void {
   });
 }
 
-const JAZZ_CHORDS: readonly (readonly number[])[] = [
-  [220, 277.18, 329.63, 415.3],
-  [246.94, 293.66, 369.99, 440],
-  [164.81, 196, 246.94, 293.66],
-  [220, 261.63, 329.63, 392],
+const SONG_CHORDS: readonly (readonly number[])[] = [
+  [130.81, 196, 246.94, 293.66, 329.63],
+  [110, 164.81, 207.65, 277.18, 311.13],
+  [146.83, 220, 261.63, 329.63, 349.23],
+  [98, 174.61, 220, 246.94, 329.63],
+  [164.81, 196, 246.94, 293.66, 369.99],
+  [110, 164.81, 207.65, 277.18, 329.63],
+  [146.83, 220, 261.63, 329.63, 349.23],
+  [98, 174.61, 220, 246.94, 329.63],
 ];
 
 type ExpressiveNote = readonly [offset: number, frequency: number, volume: number, duration: number];
 
-const PIANO_SCALE_RUNS: readonly (readonly ExpressiveNote[])[] = [
-  [[0, 246.94, 0.026, 0.84], [0.14, 277.18, 0.029, 0.8], [0.3, 293.66, 0.034, 0.88], [0.49, 329.63, 0.027, 0.8], [0.68, 369.99, 0.036, 0.92], [0.84, 392, 0.028, 0.8], [1.04, 440, 0.033, 0.86], [1.31, 493.88, 0.04, 1.1]],
-  [[0, 329.63, 0.017, 0.74], [0.18, 369.99, 0.02, 0.78], [0.34, 392, 0.016, 0.68], [0.56, 440, 0.023, 0.82], [0.73, 493.88, 0.018, 0.7], [0.91, 554.37, 0.022, 0.78], [1.14, 587.33, 0.017, 0.72], [1.38, 659.25, 0.026, 1.04]],
-  [[0, 440, 0.024, 0.9], [0.23, 493.88, 0.018, 0.72], [0.4, 554.37, 0.021, 0.78], [0.61, 587.33, 0.017, 0.68], [0.79, 659.25, 0.024, 0.84], [1.02, 739.99, 0.017, 0.72], [1.18, 783.99, 0.022, 0.8], [1.45, 880, 0.026, 1.06]],
-  [[0, 587.33, 0.024, 0.88], [0.21, 554.37, 0.018, 0.72], [0.39, 493.88, 0.021, 0.78], [0.57, 440, 0.017, 0.7], [0.81, 369.99, 0.024, 0.84], [0.97, 329.63, 0.018, 0.72], [1.2, 293.66, 0.022, 0.8], [1.48, 277.18, 0.027, 1.08]],
+const ORGAN_PHRASES: readonly (readonly ExpressiveNote[])[] = [
+  [[0, 329.63, 0.032, 0.9], [0.32, 392, 0.038, 0.82], [0.67, 493.88, 0.034, 1.04], [1.12, 587.33, 0.042, 0.94], [1.55, 523.25, 0.03, 1.3]],
+  [[0, 349.23, 0.034, 0.88], [0.28, 440, 0.04, 0.9], [0.72, 523.25, 0.03, 1.1], [1.18, 659.25, 0.043, 0.96], [1.58, 587.33, 0.033, 1.34]],
+  [[0, 392, 0.033, 0.9], [0.38, 493.88, 0.04, 0.84], [0.75, 587.33, 0.032, 1.02], [1.2, 739.99, 0.044, 0.94], [1.64, 659.25, 0.034, 1.32]],
+  [[0, 440, 0.04, 0.92], [0.34, 392, 0.032, 0.86], [0.7, 349.23, 0.038, 1.02], [1.16, 329.63, 0.03, 0.92], [1.58, 293.66, 0.043, 1.38]],
 ];
 
-function scheduleOrganNote(
+function scheduleInstrumentNote(
   audio: AudioContext,
   destination: AudioNode,
   frequency: number,
@@ -180,14 +184,15 @@ function scheduleOrganNote(
   duration: number,
   volume: number,
   type: OscillatorType,
+  character: "piano" | "organ",
 ): void {
   const oscillator = audio.createOscillator();
   const gain = audio.createGain();
   oscillator.type = type;
   oscillator.frequency.setValueAtTime(frequency, start);
   gain.gain.setValueAtTime(0.0001, start);
-  gain.gain.exponentialRampToValueAtTime(volume, start + 0.11);
-  gain.gain.setValueAtTime(volume * 0.88, start + Math.max(0.12, duration - 0.38));
+  gain.gain.exponentialRampToValueAtTime(volume, start + (character === "piano" ? 0.025 : 0.09));
+  gain.gain.setValueAtTime(volume * (character === "piano" ? 0.42 : 0.88), start + Math.max(0.12, duration - 0.38));
   gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
   oscillator.connect(gain);
   gain.connect(destination);
@@ -197,30 +202,31 @@ function scheduleOrganNote(
 
 function startScheduledGameMusic(audio: AudioContext): () => void {
   const master = audio.createGain();
-  master.gain.setValueAtTime(0.95, audio.currentTime);
+  master.gain.setValueAtTime(0.88, audio.currentTime);
   master.connect(audio.destination);
   const cycleDuration = 40;
   const scheduleCycle = (cycleStart: number): void => {
-    Array.from({ length: 20 }, (_, chordIndex) => JAZZ_CHORDS[chordIndex % JAZZ_CHORDS.length] ?? []).forEach((chord, chordIndex) => {
-      const chordStart = cycleStart + chordIndex * 2;
+    SONG_CHORDS.forEach((chord, chordIndex) => {
+      const chordStart = cycleStart + chordIndex * 5;
       chord.forEach((frequency, noteIndex) => {
-        scheduleOrganNote(
+        scheduleInstrumentNote(
           audio,
           master,
           frequency,
-          chordStart + noteIndex * 0.045,
-          2.22,
-          0.02,
-          "sine",
+          chordStart + noteIndex * 0.052,
+          5.15,
+          noteIndex === 0 ? 0.024 : 0.017,
+          "triangle",
+          "piano",
         );
-        scheduleOrganNote(audio, master, frequency * 2, chordStart + noteIndex * 0.045, 2.05, 0.0035, "square");
+        scheduleInstrumentNote(audio, master, frequency * 2, chordStart + noteIndex * 0.052, 3.9, 0.003, "sine", "piano");
       });
     });
-    PIANO_SCALE_RUNS.forEach((run, runIndex) => {
-      run.forEach(([offset, frequency, volume, duration]) => {
-        const start = cycleStart + 2 + runIndex * 10 + offset;
-        scheduleOrganNote(audio, master, frequency, start, duration, volume * 1.35, "sine");
-        scheduleOrganNote(audio, master, frequency * 2, start, duration * 0.82, volume * 0.18, "square");
+    ORGAN_PHRASES.forEach((phrase, phraseIndex) => {
+      phrase.forEach(([offset, frequency, volume, duration]) => {
+        const start = cycleStart + 2 + phraseIndex * 10 + offset;
+        scheduleInstrumentNote(audio, master, frequency, start, duration, volume, "sine", "organ");
+        scheduleInstrumentNote(audio, master, frequency * 2, start, duration * 0.9, volume * 0.16, "square", "organ");
       });
     });
   };

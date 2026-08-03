@@ -13,7 +13,7 @@ import type {
   SessionUser,
 } from "./api";
 // @ts-expect-error Vite supports query-string imports used to invalidate tunnel caches.
-import * as versionedApi from "./api.ts?v=jazz-organ-49";
+import * as versionedApi from "./api.ts?v=new-piano-organ-song-50";
 import { copyInvite } from "./invite-share";
 import {
   gameMusicEnabled,
