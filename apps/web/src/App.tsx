@@ -13,9 +13,9 @@ import type {
   SessionUser,
 } from "./api";
 // @ts-expect-error Vite supports query-string imports used to invalidate tunnel caches.
-import * as versionedApi from "./api.ts?v=button-sounds-34";
+import * as versionedApi from "./api.ts?v=game-sounds-35";
 import { copyInvite } from "./invite-share";
-import { installButtonSounds } from "./ui-sounds";
+import { installButtonSounds, playWordSuccess } from "./ui-sounds";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 const api = versionedApi as typeof import("./api");
@@ -1097,6 +1097,7 @@ export function PlayScreen(props: {
           setCelebrationWord("");
         }, 1_000);
       }
+      if (result.accepted) playWordSuccess(result.normalizedWord.length === 6);
       setSelected([]);
       setRack(makeRack(originalRack));
     } catch (caught) {

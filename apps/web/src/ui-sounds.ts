@@ -23,11 +23,12 @@ function tone(
     readonly frequency: number;
     readonly endFrequency: number;
     readonly duration: number;
+    readonly delay?: number;
     readonly volume: number;
     readonly type: OscillatorType;
   },
 ): void {
-  const now = audio.currentTime;
+  const now = audio.currentTime + (options.delay ?? 0);
   const oscillator = audio.createOscillator();
   const gain = audio.createGain();
   oscillator.type = options.type;
@@ -53,23 +54,56 @@ function playButtonClick(): void {
   });
 }
 
-function playWoodTileClick(): void {
+function playTileClick(): void {
   const audio = getContext();
   if (!audio) return;
   tone(audio, {
-    frequency: 190,
-    endFrequency: 92,
-    duration: 0.085,
-    volume: 0.075,
+    frequency: 540,
+    endFrequency: 760,
+    duration: 0.045,
+    volume: 0.055,
+    type: "triangle",
+  });
+}
+
+function playEnterClick(): void {
+  const audio = getContext();
+  if (!audio) return;
+  tone(audio, {
+    frequency: 430,
+    endFrequency: 290,
+    duration: 0.065,
+    volume: 0.065,
+    type: "triangle",
+  });
+}
+
+function pianoNote(audio: AudioContext, frequency: number, delay: number): void {
+  tone(audio, {
+    frequency,
+    endFrequency: frequency * 0.995,
+    duration: 0.24,
+    delay,
+    volume: 0.06,
     type: "triangle",
   });
   tone(audio, {
-    frequency: 105,
-    endFrequency: 72,
-    duration: 0.11,
-    volume: 0.035,
+    frequency: frequency * 2,
+    endFrequency: frequency * 1.99,
+    duration: 0.16,
+    delay,
+    volume: 0.018,
     type: "sine",
   });
+}
+
+export function playWordSuccess(anagram: boolean): void {
+  const audio = getContext();
+  if (!audio) return;
+  const notes = anagram
+    ? [523.25, 659.25, 783.99, 1046.5, 1318.51]
+    : [523.25, 659.25, 783.99];
+  notes.forEach((frequency, index) => pianoNote(audio, frequency, index * 0.115));
 }
 
 export function installButtonSounds(): () => void {
@@ -77,7 +111,8 @@ export function installButtonSounds(): () => void {
     if (!(event.target instanceof Element)) return;
     const button = event.target.closest("button");
     if (!(button instanceof HTMLButtonElement) || button.disabled) return;
-    if (button.closest(".rack")) playWoodTileClick();
+    if (button.closest(".rack")) playTileClick();
+    else if (button.classList.contains("enter-button")) playEnterClick();
     else playButtonClick();
   };
   document.addEventListener("pointerdown", handlePointerDown, { capture: true });
