@@ -106,6 +106,75 @@ export function playWordSuccess(anagram: boolean): void {
   notes.forEach((frequency, index) => loungeNote(audio, frequency, index * 0.16));
 }
 
+const LOUNGE_CHORDS: readonly (readonly number[])[] = [
+  [146.83, 220, 277.18, 329.63],
+  [123.47, 185, 246.94, 293.66],
+  [164.81, 220, 246.94, 329.63],
+  [110, 164.81, 207.65, 277.18],
+];
+
+function scheduleMusicNote(
+  audio: AudioContext,
+  destination: AudioNode,
+  frequency: number,
+  start: number,
+  duration: number,
+  volume: number,
+): void {
+  const oscillator = audio.createOscillator();
+  const gain = audio.createGain();
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(frequency, start);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(volume, start + 0.22);
+  gain.gain.setValueAtTime(volume, start + duration - 0.45);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  oscillator.connect(gain);
+  gain.connect(destination);
+  oscillator.start(start);
+  oscillator.stop(start + duration + 0.02);
+}
+
+export function startGameMusic(): () => void {
+  const audio = getContext();
+  if (!audio) return () => undefined;
+  const master = audio.createGain();
+  master.gain.setValueAtTime(0.72, audio.currentTime);
+  master.connect(audio.destination);
+  const cycleDuration = 8;
+  const scheduleCycle = (cycleStart: number): void => {
+    LOUNGE_CHORDS.forEach((chord, chordIndex) => {
+      const chordStart = cycleStart + chordIndex * 2;
+      chord.forEach((frequency, noteIndex) => {
+        scheduleMusicNote(
+          audio,
+          master,
+          frequency,
+          chordStart + noteIndex * 0.055,
+          1.82,
+          noteIndex === 0 ? 0.012 : 0.008,
+        );
+      });
+    });
+  };
+  let nextCycle = audio.currentTime + 0.08;
+  scheduleCycle(nextCycle);
+  nextCycle += cycleDuration;
+  const scheduler = window.setInterval(() => {
+    while (nextCycle < audio.currentTime + cycleDuration) {
+      scheduleCycle(nextCycle);
+      nextCycle += cycleDuration;
+    }
+  }, 2_000);
+  return () => {
+    window.clearInterval(scheduler);
+    master.gain.cancelScheduledValues(audio.currentTime);
+    master.gain.setValueAtTime(Math.max(master.gain.value, 0.0001), audio.currentTime);
+    master.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.12);
+    window.setTimeout(() => master.disconnect(), 150);
+  };
+}
+
 export function installButtonSounds(): () => void {
   const handlePointerDown = (event: PointerEvent): void => {
     if (!(event.target instanceof Element)) return;

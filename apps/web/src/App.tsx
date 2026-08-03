@@ -13,9 +13,9 @@ import type {
   SessionUser,
 } from "./api";
 // @ts-expect-error Vite supports query-string imports used to invalidate tunnel caches.
-import * as versionedApi from "./api.ts?v=result-font-37";
+import * as versionedApi from "./api.ts?v=round-music-38";
 import { copyInvite } from "./invite-share";
-import { installButtonSounds, playWordSuccess } from "./ui-sounds";
+import { installButtonSounds, playWordSuccess, startGameMusic } from "./ui-sounds";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 const api = versionedApi as typeof import("./api");
@@ -1049,6 +1049,7 @@ export function PlayScreen(props: {
   readonly onFinish: () => void;
   readonly onExit: () => void;
 }): React.JSX.Element {
+  useEffect(() => startGameMusic(), []);
   const [feedback, setFeedback] = useState("");
   const originalRack = Array.from(props.state.game.rack ?? "");
   const [rack, setRack] = useState<readonly RackTile[]>(() =>
