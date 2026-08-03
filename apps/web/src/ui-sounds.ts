@@ -46,9 +46,28 @@ export function setSoundEffectsEnabled(enabled: boolean): void {
 function getContext(): AudioContext | undefined {
   const Constructor = audioContextConstructor();
   if (!Constructor) return undefined;
+  if (context?.state === "closed") context = undefined;
   context ??= new Constructor();
-  if (context.state === "suspended") void context.resume();
   return context;
+}
+
+async function runningContext(): Promise<AudioContext | undefined> {
+  const audio = getContext();
+  if (!audio) return undefined;
+  if (audio.state !== "running") {
+    try {
+      await audio.resume();
+    } catch {
+      return undefined;
+    }
+  }
+  return audio.state === "running" ? audio : undefined;
+}
+
+function withRunningAudio(action: (audio: AudioContext) => void): void {
+  void runningContext().then((audio) => {
+    if (audio) action(audio);
+  });
 }
 
 function tone(
@@ -77,39 +96,33 @@ function tone(
 }
 
 function playButtonClick(): void {
-  const audio = getContext();
-  if (!audio) return;
-  tone(audio, {
+  withRunningAudio((audio) => tone(audio, {
     frequency: 680,
     endFrequency: 430,
     duration: 0.035,
     volume: 0.045,
     type: "triangle",
-  });
+  }));
 }
 
 function playTileClick(): void {
-  const audio = getContext();
-  if (!audio) return;
-  tone(audio, {
+  withRunningAudio((audio) => tone(audio, {
     frequency: 540,
     endFrequency: 760,
     duration: 0.045,
     volume: 0.055,
     type: "triangle",
-  });
+  }));
 }
 
 function playEnterClick(): void {
-  const audio = getContext();
-  if (!audio) return;
-  tone(audio, {
+  withRunningAudio((audio) => tone(audio, {
     frequency: 430,
     endFrequency: 290,
     duration: 0.065,
     volume: 0.065,
     type: "triangle",
-  });
+  }));
 }
 
 function loungeNote(audio: AudioContext, frequency: number, delay: number): void {
@@ -133,12 +146,12 @@ function loungeNote(audio: AudioContext, frequency: number, delay: number): void
 
 export function playWordSuccess(anagram: boolean): void {
   if (!soundEffectsEnabled()) return;
-  const audio = getContext();
-  if (!audio) return;
   const notes = anagram
     ? [293.66, 369.99, 554.37]
     : [293.66, 369.99];
-  notes.forEach((frequency, index) => loungeNote(audio, frequency, index * 0.16));
+  withRunningAudio((audio) => {
+    notes.forEach((frequency, index) => loungeNote(audio, frequency, index * 0.16));
+  });
 }
 
 const JAZZ_CHORDS: readonly (readonly number[])[] = [
@@ -189,10 +202,7 @@ function schedulePianoNote(
   oscillator.stop(start + duration + 0.02);
 }
 
-export function startGameMusic(): () => void {
-  if (!gameMusicEnabled()) return () => undefined;
-  const audio = getContext();
-  if (!audio) return () => undefined;
+function startScheduledGameMusic(audio: AudioContext): () => void {
   const master = audio.createGain();
   master.gain.setValueAtTime(0.6, audio.currentTime);
   master.connect(audio.destination);
@@ -246,7 +256,24 @@ export function startGameMusic(): () => void {
   };
 }
 
+export function startGameMusic(): () => void {
+  if (!gameMusicEnabled()) return () => undefined;
+  let cancelled = false;
+  let stop = (): void => undefined;
+  void runningContext().then((audio) => {
+    if (!audio || cancelled) return;
+    stop = startScheduledGameMusic(audio);
+  });
+  return () => {
+    cancelled = true;
+    stop();
+  };
+}
+
 export function installButtonSounds(): () => void {
+  const unlock = (): void => {
+    void runningContext();
+  };
   const handlePointerDown = (event: PointerEvent): void => {
     if (!(event.target instanceof Element)) return;
     const button = event.target.closest("button");
@@ -256,6 +283,10 @@ export function installButtonSounds(): () => void {
     else if (button.classList.contains("enter-button")) playEnterClick();
     else playButtonClick();
   };
+  document.addEventListener("touchstart", unlock, { capture: true, passive: true });
   document.addEventListener("pointerdown", handlePointerDown, { capture: true });
-  return () => document.removeEventListener("pointerdown", handlePointerDown, { capture: true });
+  return () => {
+    document.removeEventListener("touchstart", unlock, { capture: true });
+    document.removeEventListener("pointerdown", handlePointerDown, { capture: true });
+  };
 }
