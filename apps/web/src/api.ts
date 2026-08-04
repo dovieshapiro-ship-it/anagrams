@@ -494,15 +494,23 @@ export function getGame(gameId: string): Promise<WireGameStateResponse> {
 export async function markReady(
   gameId: string,
   version: number,
-): Promise<void> {
-  await command(gameId, "/ready", { expectedVersion: version });
+): Promise<WireGameStateResponse> {
+  return request(
+    `/games/${encodeURIComponent(gameId)}/ready`,
+    wireGameStateResponseSchema,
+    { method: "POST", body: { expectedVersion: version } },
+  );
 }
 
 export async function startRound(
   gameId: string,
   version: number,
-): Promise<void> {
-  await command(gameId, "/round/start", { expectedVersion: version });
+): Promise<WireGameStateResponse> {
+  return request(
+    `/games/${encodeURIComponent(gameId)}/round/start`,
+    wireGameStateResponseSchema,
+    { method: "POST", body: { expectedVersion: version } },
+  );
 }
 
 export async function finishRound(
