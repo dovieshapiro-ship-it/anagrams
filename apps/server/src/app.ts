@@ -1,4 +1,4 @@
-import { randomBytes, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
+import { randomBytes, randomInt, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
@@ -28,6 +28,7 @@ import type { Env } from "./env.js";
 import type { DatabaseHandle } from "./db/client.js";
 import {
   authSessions,
+  emailLoginCodes,
   friendGameInvites,
   friendships,
   gamePlayers,
@@ -101,6 +102,8 @@ const passwordSignupBody = z.object({
 const passwordLoginBody = z.object({ email: z.string().trim().min(3).max(254).transform((value) => value.toLowerCase()), password }).strict();
 const forgotPasswordBody = z.object({ email }).strict();
 const resetPasswordBody = z.object({ token: z.string().min(20).max(256), password }).strict();
+const requestLoginCodeBody = z.object({ email }).strict();
+const consumeLoginCodeBody = z.object({ challengeToken: z.string().min(20).max(256), code: z.string().regex(/^\d{6}$/u) }).strict();
 const passwordBody = z.object({ password }).strict();
 
 const scrypt = promisify(nodeScrypt);
@@ -225,6 +228,8 @@ export async function buildApp(
       request.url === "/api/v1/auth/password/login" ||
       request.url === "/api/v1/auth/password/forgot" ||
       request.url === "/api/v1/auth/password/reset" ||
+      request.url === "/api/v1/auth/code/request" ||
+      request.url === "/api/v1/auth/code/consume" ||
       request.url === "/api/v1/auth/magic-links" ||
       request.url === "/api/v1/auth/magic-links/consume"
     )
@@ -342,6 +347,45 @@ export async function buildApp(
     });
     await issuePasswordSession(userId, reply);
     return { user: { id: userId } };
+  });
+
+  app.post("/api/v1/auth/code/request", { config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } }, async (request, reply) => {
+    const body = requestLoginCodeBody.parse(request.body);
+    const challengeToken = opaqueToken();
+    const [account] = await database.db.select({ userId: userEmails.userId }).from(userEmails).where(eq(userEmails.normalizedEmail, body.email));
+    if (account && env.RESEND_API_KEY && env.EMAIL_FROM) {
+      const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+      const expiresAt = new Date(Date.now() + 10 * 60_000);
+      await database.db.transaction(async (tx) => {
+        await tx.update(emailLoginCodes).set({ consumedAt: new Date() }).where(and(eq(emailLoginCodes.userId, account.userId), isNull(emailLoginCodes.consumedAt)));
+        await tx.insert(emailLoginCodes).values({ userId: account.userId, challengeHash: tokenHash(challengeToken), codeHash: tokenHash(code), expiresAt });
+      });
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from: env.EMAIL_FROM, to: [body.email], subject: "Your KiwiGames login code", text: `Your KiwiGames code is ${code}. It expires in 10 minutes.`, html: `<p>Your KiwiGames login code is:</p><p style="font-size:32px;font-weight:bold;letter-spacing:8px">${code}</p><p>It expires in 10 minutes.</p>` }),
+      });
+      if (!response.ok) request.log.error({ status: response.status }, "Resend login code email failed");
+    }
+    reply.header("Cache-Control", "no-store");
+    return reply.status(202).send({ accepted: true, challengeToken });
+  });
+
+  app.post("/api/v1/auth/code/consume", { config: { rateLimit: { max: 10, timeWindow: "15 minutes" } } }, async (request, reply) => {
+    const body = consumeLoginCodeBody.parse(request.body);
+    const result = await database.db.transaction(async (tx) => {
+      const [challenge] = await tx.select().from(emailLoginCodes).where(and(eq(emailLoginCodes.challengeHash, tokenHash(body.challengeToken)), isNull(emailLoginCodes.consumedAt), gt(emailLoginCodes.expiresAt, new Date())));
+      if (!challenge || challenge.attempts >= 5) return { userId: null, valid: false } as const;
+      if (challenge.codeHash !== tokenHash(body.code)) {
+        await tx.update(emailLoginCodes).set({ attempts: challenge.attempts + 1 }).where(eq(emailLoginCodes.id, challenge.id));
+        return { userId: null, valid: false } as const;
+      }
+      await tx.update(emailLoginCodes).set({ consumedAt: new Date() }).where(eq(emailLoginCodes.id, challenge.id));
+      return { userId: challenge.userId, valid: true } as const;
+    });
+    if (!result.valid) throw new ApiError(401, "CODE_INVALID", "That code is invalid or expired");
+    await issuePasswordSession(result.userId, reply);
+    return { user: { id: result.userId } };
   });
 
   app.post(
