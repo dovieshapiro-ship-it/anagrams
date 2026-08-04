@@ -489,6 +489,7 @@ export const wireGameStateResponseSchema = z
       .object({ id: idSchema, requestedByPlayerId: idSchema, canAccept: z.boolean() })
       .strict()
       .optional(),
+    resultingRematchGameId: idSchema.nullable().optional(),
   })
   .strict()
   .superRefine((state, context) => {
