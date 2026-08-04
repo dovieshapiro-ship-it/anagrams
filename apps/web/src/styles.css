@@ -2745,6 +2745,18 @@ input:focus-visible {
     overscroll-behavior: none;
   }
 
+  .game-table {
+    background-color: #103124;
+    background-image:
+      radial-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      repeating-linear-gradient(
+        45deg,
+        transparent 0 8px,
+        rgba(0, 0, 0, 0.025) 9px 10px
+      );
+    box-shadow: inset 0 0 72px rgba(2, 14, 9, 0.72);
+  }
+
   .screen {
     position: fixed;
     top: max(6px, env(safe-area-inset-top));
@@ -2761,6 +2773,8 @@ input:focus-visible {
     overflow: hidden;
     border: 0;
     outline: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
   .ivory-panel,
@@ -2895,6 +2909,11 @@ input:focus-visible {
     width: 42px;
   }
 
+  .start-screen > .home-account .account-popover {
+    top: 62px;
+    right: 10px;
+  }
+
   .screen::before,
   .screen::after {
     content: none;
@@ -2905,6 +2924,12 @@ input:focus-visible {
   .start-screen:has(.mode-actions) h1,
   .start-screen:has(.mode-actions) .game-facts {
     margin-block: clamp(12px, 2.4dvh, 22px);
+  }
+
+  .start-screen:not(.auth-screen) > h1,
+  .start-screen:not(.auth-screen) > .mode-actions,
+  .start-screen:not(.auth-screen) > .game-facts {
+    transform: translateY(clamp(-72px, -7dvh, -46px));
   }
 
   .mode-actions {
