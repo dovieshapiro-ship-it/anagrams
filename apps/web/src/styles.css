@@ -2778,7 +2778,7 @@ input:focus-visible {
 
   .play-screen {
     justify-content: center;
-    padding: 12px 16px;
+    padding: 12px 16px clamp(72px, 8dvh, 96px);
   }
 
   .play-screen > .play-exit,
@@ -2793,8 +2793,10 @@ input:focus-visible {
   }
 
   .play-screen .play-topbar .round-shuffle {
-    right: 12px;
-    left: auto;
+    position: absolute !important;
+    top: 8px !important;
+    right: 12px !important;
+    left: auto !important;
   }
 
   .play-topbar {
@@ -2873,7 +2875,7 @@ input:focus-visible {
   }
 
   .start-screen > .logout-link,
-  .start-screen > .home-account .trophy-stat {
+  .start-screen > .home-account .account-person-button {
     top: 8px;
     height: 42px;
   }
@@ -2885,9 +2887,15 @@ input:focus-visible {
     padding: 0;
   }
 
-  .start-screen > .home-account .trophy-stat {
-    align-items: center;
+  .start-screen > .home-account .account-person-button {
     right: 14px;
+    width: 42px;
+  }
+
+  .screen::before,
+  .screen::after {
+    content: none;
+    display: none;
   }
 
   .start-screen:has(.mode-actions) .brand-mark,
