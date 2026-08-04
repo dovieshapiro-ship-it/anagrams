@@ -2750,9 +2750,24 @@ input:focus-visible {
     max-width: none;
     height: 100dvh;
     min-height: 100dvh;
-    padding-right: max(10px, env(safe-area-inset-right));
-    padding-left: max(10px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
+    padding-left: max(14px, env(safe-area-inset-left));
     overflow: hidden;
+  }
+
+  .ivory-panel,
+  .rules-sheet,
+  .results-sheet,
+  .friends-sheet,
+  .leaderboard-sheet,
+  .auth-sheet,
+  .username-sheet,
+  .word-board,
+  .score-strip {
+    width: 100%;
+    max-width: 100%;
+    margin-right: auto;
+    margin-left: auto;
   }
 
   .play-screen {
@@ -2842,7 +2857,20 @@ input:focus-visible {
   }
 
   .start-screen:not(.auth-screen) > h1 {
-    font-size: clamp(2.25rem, 10vw, 3rem);
+    font-size: clamp(2.75rem, 12vw, 3.5rem);
+  }
+
+  .start-screen > .logout-link,
+  .start-screen > .home-account .trophy-stat {
+    top: max(8px, env(safe-area-inset-top));
+  }
+
+  .start-screen > .logout-link {
+    left: max(16px, env(safe-area-inset-left));
+  }
+
+  .start-screen > .home-account .trophy-stat {
+    right: max(14px, env(safe-area-inset-right));
   }
 
   .start-screen:has(.mode-actions) .brand-mark,
@@ -2856,7 +2884,18 @@ input:focus-visible {
   }
 
   .mode-actions .table-button {
-    min-height: 54px;
+    width: min(84vw, 330px);
+    min-width: min(84vw, 330px);
+    min-height: 64px;
+    font-size: clamp(1.28rem, 5.8vw, 1.55rem);
+  }
+
+  .rules-screen,
+  .friends-screen,
+  .leaderboard-screen,
+  .results-screen {
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-left: max(16px, env(safe-area-inset-left));
   }
 
   .friends-sheet,
