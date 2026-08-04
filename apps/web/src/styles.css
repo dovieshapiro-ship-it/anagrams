@@ -2956,4 +2956,122 @@ input:focus-visible {
     max-height: calc(100dvh - 170px);
     margin-top: 16px;
   }
+
+  /* Keep results controls on-screen while long word lists scroll independently. */
+  .results-screen {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: clamp(7px, 1.2dvh, 12px);
+    padding-top: 12px;
+    padding-bottom: 10px;
+    overflow: hidden !important;
+  }
+
+  .results-screen .screen-title {
+    flex: 0 0 auto;
+    margin: 0;
+    font-size: clamp(1.75rem, 8vw, 2.3rem);
+  }
+
+  .results-screen .results-sheet {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-top: 12px;
+    padding-bottom: 10px;
+    overflow: hidden;
+  }
+
+  .results-screen .results-grid,
+  .results-screen .result-column {
+    min-height: 0;
+    height: 100%;
+  }
+
+  .results-screen .result-column {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .results-screen .result-column ul {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    margin-top: 9px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .results-screen .winner-banner,
+  .results-screen .praise-card,
+  .results-screen > .table-button,
+  .results-screen > p,
+  .results-screen .exit-link,
+  .results-screen .error-message {
+    flex: 0 0 auto;
+  }
+
+  .results-screen .winner-banner {
+    margin: 0;
+    padding: 8px 28px;
+    font-size: clamp(1.35rem, 6vw, 1.8rem);
+  }
+
+  .results-screen .praise-card {
+    padding-top: 7px;
+    padding-bottom: 8px;
+  }
+
+  .results-screen > .table-button {
+    min-height: 48px;
+    margin-top: 0;
+  }
+
+  .results-screen .exit-link {
+    margin: 0;
+    padding: 5px 12px;
+  }
+
+  /* Strong native overrides: edge-to-edge felt and a compact, raised home group. */
+  html,
+  body,
+  #root,
+  .game-table {
+    background-color: #103124 !important;
+  }
+
+  .game-table {
+    background-image:
+      radial-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      repeating-linear-gradient(
+        45deg,
+        transparent 0 8px,
+        rgba(0, 0, 0, 0.025) 9px 10px
+      ) !important;
+    box-shadow: inset 0 0 78px rgba(2, 14, 9, 0.74) !important;
+  }
+
+  .screen {
+    border: 0 !important;
+    outline: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .start-screen:not(.auth-screen) > h1,
+  .start-screen:not(.auth-screen) > .mode-actions,
+  .start-screen:not(.auth-screen) > .game-facts {
+    position: relative;
+    top: -58px;
+    transform: none;
+  }
+
+  .start-screen > .home-account .account-popover {
+    top: 61px !important;
+    right: 10px !important;
+  }
 }
