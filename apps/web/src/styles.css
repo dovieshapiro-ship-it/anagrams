@@ -3071,7 +3071,13 @@ input:focus-visible {
   }
 
   .start-screen > .home-account .account-popover {
-    top: 61px !important;
+    top: 67px !important;
     right: 10px !important;
+  }
+
+  /* A little breathing room below the fixed back arrows. */
+  .rules-screen > .screen-title,
+  .friends-screen > .screen-title {
+    margin-top: 52px;
   }
 }
