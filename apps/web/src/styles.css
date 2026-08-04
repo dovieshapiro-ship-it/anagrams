@@ -2048,8 +2048,9 @@ input:focus-visible {
 }
 
 .auth-sheet .forgot-password-link {
-  margin: -0.25rem 0 0.35rem auto;
+  margin: -0.25rem auto 0.35rem;
   font-size: clamp(0.7rem, 2.2vw, 0.9rem);
+  text-align: center;
 }
 
 .compact-auth-title {
