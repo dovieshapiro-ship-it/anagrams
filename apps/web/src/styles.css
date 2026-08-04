@@ -2731,3 +2731,137 @@ input:focus-visible {
     font-size: 2.05rem;
   }
 }
+
+/* Native phone shell: occupy the safe viewport without making the page scroll. */
+@media (max-width: 600px) {
+  html,
+  body,
+  #root,
+  .game-table {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  .screen {
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    min-height: 100dvh;
+    padding-right: max(10px, env(safe-area-inset-right));
+    padding-left: max(10px, env(safe-area-inset-left));
+    overflow: hidden;
+  }
+
+  .play-screen {
+    padding-top: max(10px, env(safe-area-inset-top));
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+
+  .play-screen > .play-exit,
+  .play-screen .round-shuffle {
+    top: 8px;
+    width: 42px;
+    height: 42px;
+  }
+
+  .play-screen > .play-exit {
+    left: 12px;
+  }
+
+  .play-topbar {
+    height: 52px;
+  }
+
+  .timer-pill {
+    padding: 7px 22px;
+    font-size: 1.4rem;
+  }
+
+  .score-strip {
+    margin: 8px 0 12px;
+    padding: clamp(12px, 2.2dvh, 18px) 18px;
+    font-size: clamp(0.92rem, 4vw, 1.08rem);
+  }
+
+  .word-board {
+    padding: clamp(12px, 2dvh, 18px) 6px clamp(13px, 2.2dvh, 20px);
+  }
+
+  .word-board p {
+    margin-bottom: clamp(9px, 1.5dvh, 14px);
+    font-size: clamp(0.86rem, 3.8vw, 1rem);
+  }
+
+  .word-slots {
+    gap: 5px;
+  }
+
+  .word-slots span {
+    aspect-ratio: 0.86;
+    font-size: clamp(1.35rem, 6vw, 1.7rem);
+  }
+
+  .reset-word-button {
+    margin-top: 8px;
+  }
+
+  .entry-form {
+    margin-top: clamp(10px, 1.8dvh, 16px);
+  }
+
+  .entry-form .enter-button {
+    min-height: 50px;
+    font-size: 1.2rem;
+  }
+
+  .entry-form p {
+    margin: 6px 0 3px;
+  }
+
+  .round-feedback {
+    min-height: 1.15em;
+    font-size: 0.78rem;
+  }
+
+  .rack {
+    gap: 5px;
+    margin-top: 5px;
+  }
+
+  .rack button {
+    aspect-ratio: 0.92;
+    font-size: clamp(1.75rem, 8vw, 2.25rem);
+  }
+
+  .start-screen:not(.auth-screen) {
+    padding-top: max(48px, env(safe-area-inset-top));
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+  }
+
+  .start-screen:not(.auth-screen) > h1 {
+    font-size: clamp(2.25rem, 10vw, 3rem);
+  }
+
+  .start-screen:has(.mode-actions) .brand-mark,
+  .start-screen:has(.mode-actions) h1,
+  .start-screen:has(.mode-actions) .game-facts {
+    margin-block: clamp(12px, 2.4dvh, 22px);
+  }
+
+  .mode-actions {
+    gap: clamp(12px, 2dvh, 18px);
+  }
+
+  .mode-actions .table-button {
+    min-height: 54px;
+  }
+
+  .friends-sheet,
+  .leaderboard-sheet {
+    max-height: calc(100dvh - 170px);
+    margin-top: 16px;
+  }
+}
