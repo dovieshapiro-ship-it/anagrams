@@ -1737,7 +1737,6 @@ async function gameState(
   const serverTime = new Date().toISOString();
   void opponentRound;
   void rematchStatus;
-  void acceptedRematch;
   const results = completed
     ? players.map((player) => {
         const round = gameRounds.find((item) => item.gamePlayerId === player.id);
@@ -1796,5 +1795,6 @@ async function gameState(
           canAccept: pendingRematch.requestedByPlayerId !== me.id,
         }
       : undefined,
+    resultingRematchGameId: acceptedRematch?.resultingGameId ?? undefined,
   };
 }
