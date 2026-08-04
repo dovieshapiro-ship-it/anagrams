@@ -2746,14 +2746,16 @@ input:focus-visible {
   }
 
   .screen {
-    width: calc(100% - 10px);
+    position: fixed;
+    top: max(6px, env(safe-area-inset-top));
+    right: max(6px, env(safe-area-inset-right));
+    bottom: max(6px, env(safe-area-inset-bottom));
+    left: max(6px, env(safe-area-inset-left));
+    width: auto;
     max-width: none;
-    height: calc(
-      100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 6px
-    );
+    height: auto;
     min-height: 0;
-    margin: calc(env(safe-area-inset-top) + 3px) 5px
-      calc(env(safe-area-inset-bottom) + 3px);
+    margin: 0;
     padding-right: 14px;
     padding-left: 14px;
     overflow: hidden;
@@ -2768,8 +2770,8 @@ input:focus-visible {
   .username-sheet,
   .word-board,
   .score-strip {
-    width: 100%;
-    max-width: 100%;
+    width: calc(100% - 24px);
+    max-width: calc(100% - 24px);
     margin-right: auto;
     margin-left: auto;
   }
@@ -2867,13 +2869,18 @@ input:focus-visible {
   .start-screen > .logout-link,
   .start-screen > .home-account .trophy-stat {
     top: 8px;
+    height: 42px;
   }
 
   .start-screen > .logout-link {
+    display: flex;
+    align-items: center;
     left: 16px;
+    padding: 0;
   }
 
   .start-screen > .home-account .trophy-stat {
+    align-items: center;
     right: 14px;
   }
 
@@ -2898,8 +2905,8 @@ input:focus-visible {
   .friends-screen,
   .leaderboard-screen,
   .results-screen {
-    padding-right: 16px;
-    padding-left: 16px;
+    padding-right: 20px;
+    padding-left: 20px;
   }
 
   .friends-sheet,
