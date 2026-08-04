@@ -18,6 +18,8 @@ const schema = z.object({
     .max(10080)
     .default(1440),
   TRUST_PROXY: z.enum(["true", "false"]).default("false"),
+  RESEND_API_KEY: z.string().min(1).optional(),
+  EMAIL_FROM: z.string().min(3).max(320).optional(),
 });
 
 export type Env = Omit<

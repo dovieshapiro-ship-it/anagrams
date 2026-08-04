@@ -34,6 +34,7 @@ import {
   games,
   invitations,
   magicLinkChallenges,
+  passwordResetChallenges,
   passwordCredentials,
   rematchRequests,
   rounds,
@@ -94,9 +95,12 @@ const password = z.string().min(8).max(128);
 const passwordSignupBody = z.object({
   displayName: z.string().trim().min(1).max(40),
   username: usernameSchema,
+  email,
   password,
 }).strict();
-const passwordLoginBody = z.object({ username: usernameSchema, password }).strict();
+const passwordLoginBody = z.object({ email: z.string().trim().min(3).max(254).transform((value) => value.toLowerCase()), password }).strict();
+const forgotPasswordBody = z.object({ email }).strict();
+const resetPasswordBody = z.object({ token: z.string().min(20).max(256), password }).strict();
 const passwordBody = z.object({ password }).strict();
 
 const scrypt = promisify(nodeScrypt);
@@ -219,6 +223,8 @@ export async function buildApp(
       request.url === "/api/v1/dev/sessions" ||
       request.url === "/api/v1/auth/password/signup" ||
       request.url === "/api/v1/auth/password/login" ||
+      request.url === "/api/v1/auth/password/forgot" ||
+      request.url === "/api/v1/auth/password/reset" ||
       request.url === "/api/v1/auth/magic-links" ||
       request.url === "/api/v1/auth/magic-links/consume"
     )
@@ -263,11 +269,14 @@ export async function buildApp(
     const body = passwordSignupBody.parse(request.body);
     const [existing] = await database.db.select({ id: users.id }).from(users).where(eq(users.username, body.username));
     if (existing) throw new ApiError(409, "USERNAME_UNAVAILABLE", "That username is already taken");
+    const [existingEmail] = await database.db.select({ id: userEmails.id }).from(userEmails).where(eq(userEmails.normalizedEmail, body.email));
+    if (existingEmail) throw new ApiError(409, "EMAIL_UNAVAILABLE", "An account already uses that email");
     const passwordHash = await hashPassword(body.password);
     const account = await database.db.transaction(async (tx) => {
       const [created] = await tx.insert(users).values({ displayName: body.displayName, username: body.username }).returning();
       if (!created) throw new Error("account creation failed");
       await tx.insert(passwordCredentials).values({ userId: created.id, passwordHash });
+      await tx.insert(userEmails).values({ userId: created.id, normalizedEmail: body.email, verifiedAt: new Date() });
       return created;
     });
     await issuePasswordSession(account.id, reply);
@@ -276,15 +285,63 @@ export async function buildApp(
 
   app.post("/api/v1/auth/password/login", { config: { rateLimit: { max: 20, timeWindow: "15 minutes" } } }, async (request, reply) => {
     const body = passwordLoginBody.parse(request.body);
-    const [account] = await database.db
+    const base = database.db
       .select({ id: users.id, displayName: users.displayName, username: users.username, passwordHash: passwordCredentials.passwordHash })
       .from(users)
-      .innerJoin(passwordCredentials, eq(passwordCredentials.userId, users.id))
-      .where(eq(users.username, body.username));
+      .innerJoin(passwordCredentials, eq(passwordCredentials.userId, users.id));
+    const [account] = body.email.includes("@")
+      ? await base.innerJoin(userEmails, eq(userEmails.userId, users.id)).where(eq(userEmails.normalizedEmail, email.parse(body.email)))
+      : await base.where(eq(users.username, usernameSchema.parse(body.email)));
     if (!account || !(await verifyPassword(body.password, account.passwordHash)))
-      throw new ApiError(401, "UNAUTHENTICATED", "Username or password is incorrect");
+      throw new ApiError(401, "UNAUTHENTICATED", "Email or password is incorrect");
     await issuePasswordSession(account.id, reply);
     return { user: { id: account.id, displayName: account.displayName, username: account.username } };
+  });
+
+  app.post("/api/v1/auth/password/forgot", { config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } }, async (request, reply) => {
+    const body = forgotPasswordBody.parse(request.body);
+    const [account] = await database.db
+      .select({ userId: userEmails.userId })
+      .from(userEmails)
+      .innerJoin(passwordCredentials, eq(passwordCredentials.userId, userEmails.userId))
+      .where(eq(userEmails.normalizedEmail, body.email));
+    if (account && env.RESEND_API_KEY && env.EMAIL_FROM) {
+      const token = opaqueToken();
+      const expiresAt = new Date(Date.now() + 15 * 60_000);
+      await database.db.transaction(async (tx) => {
+        await tx.update(passwordResetChallenges).set({ consumedAt: new Date() }).where(and(eq(passwordResetChallenges.userId, account.userId), isNull(passwordResetChallenges.consumedAt)));
+        await tx.insert(passwordResetChallenges).values({ userId: account.userId, tokenHash: tokenHash(token), expiresAt });
+      });
+      const resetUrl = `${env.PUBLIC_WEB_URL}/#reset=${encodeURIComponent(token)}`;
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: env.EMAIL_FROM,
+          to: [body.email],
+          subject: "Reset your KiwiGames password",
+          text: `Reset your KiwiGames password: ${resetUrl}\n\nThis link expires in 15 minutes and can only be used once.`,
+          html: `<p>Reset your KiwiGames password:</p><p><a href="${resetUrl}">Create a new password</a></p><p>This link expires in 15 minutes and can only be used once.</p>`,
+        }),
+      });
+      if (!response.ok) request.log.error({ status: response.status }, "Resend password reset email failed");
+    }
+    reply.header("Cache-Control", "no-store");
+    return reply.status(202).send({ accepted: true });
+  });
+
+  app.post("/api/v1/auth/password/reset", { config: { rateLimit: { max: 10, timeWindow: "15 minutes" } } }, async (request, reply) => {
+    const body = resetPasswordBody.parse(request.body);
+    const passwordHash = await hashPassword(body.password);
+    const userId = await database.db.transaction(async (tx) => {
+      const [challenge] = await tx.update(passwordResetChallenges).set({ consumedAt: new Date() }).where(and(eq(passwordResetChallenges.tokenHash, tokenHash(body.token)), isNull(passwordResetChallenges.consumedAt), gt(passwordResetChallenges.expiresAt, new Date()))).returning({ userId: passwordResetChallenges.userId });
+      if (!challenge) throw new ApiError(401, "RESET_INVALID", "This reset link is invalid or expired");
+      await tx.update(passwordCredentials).set({ passwordHash, updatedAt: new Date() }).where(eq(passwordCredentials.userId, challenge.userId));
+      await tx.delete(authSessions).where(eq(authSessions.userId, challenge.userId));
+      return challenge.userId;
+    });
+    await issuePasswordSession(userId, reply);
+    return { user: { id: userId } };
   });
 
   app.post(
