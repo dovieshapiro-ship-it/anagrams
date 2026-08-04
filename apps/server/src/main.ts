@@ -18,6 +18,11 @@ if (env.NODE_ENV === "production") {
     root: webRoot,
     prefix: "/",
     wildcard: false,
+    setHeaders(response, filePath) {
+      if (filePath.endsWith("index.html")) {
+        response.setHeader("Cache-Control", "no-store");
+      }
+    },
   });
   app.setNotFoundHandler((request, reply) => {
     if (request.url.startsWith("/api/")) {
@@ -25,7 +30,7 @@ if (env.NODE_ENV === "production") {
         error: { code: "NOT_FOUND", message: "Route not found" },
       });
     }
-    return reply.sendFile("index.html");
+    return reply.header("Cache-Control", "no-store").sendFile("index.html");
   });
 }
 const shutdown = async (): Promise<void> => {
