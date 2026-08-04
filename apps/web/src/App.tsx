@@ -1003,6 +1003,7 @@ function WaitingScreen(props: {
   const [outgoingFriend, setOutgoingFriend] = useState<FriendSummary | null>();
   const [outgoingStatus, setOutgoingStatus] = useState<"pending" | "accepted" | "declined" | null>(null);
   const [invitedFriendId, setInvitedFriendId] = useState("");
+  const [startingRound, setStartingRound] = useState(false);
   const copyToastTimer = useRef<number | undefined>(undefined);
   useEffect(
     () => () => {
@@ -1046,6 +1047,10 @@ function WaitingScreen(props: {
     ? friends.find((friend) => friend.userId === props.invitedFriendId)
     : outgoingFriend ?? undefined;
   const directFriendMatch = Boolean(props.invitedFriendId ?? outgoingFriend);
+  const startRound = (): void => {
+    setStartingRound(true);
+    props.onStart();
+  };
   async function copy(): Promise<void> {
     const invitation = props.invitation ?? (await props.onInvite());
     if (!invitation) return;
@@ -1067,7 +1072,7 @@ function WaitingScreen(props: {
               : () => undefined
         }
       />
-      <div className="modal-scrim" role="presentation">
+      {!startingRound && !(canStart && !directFriendMatch) && <div className="modal-scrim" role="presentation">
         <div
           className="ivory-panel compact-panel modal-panel"
           aria-label="Game setup"
@@ -1097,7 +1102,7 @@ function WaitingScreen(props: {
               <button
                 className="table-button direct-start-button pulse-button"
                 type="button"
-                onClick={outgoingStatus === "declined" ? props.onExit : canStart ? props.onStart : props.onReady}
+                onClick={outgoingStatus === "declined" ? props.onExit : canStart ? startRound : props.onReady}
                 disabled={props.busy || (outgoingStatus !== "declined" && (waitingOpponent || (!canStart && !needsReady)))}
               >
                 {outgoingStatus === "declined" ? "BACK TO HOME" : "START GAME"}
@@ -1134,7 +1139,7 @@ function WaitingScreen(props: {
               <button
                 className="table-button pulse-button"
                 type="button"
-                onClick={props.onStart}
+                onClick={startRound}
                 disabled={props.busy}
               >
                 START GAME
@@ -1158,7 +1163,7 @@ function WaitingScreen(props: {
           )}
           <StatusMessage error={props.error} />
         </div>
-      </div>
+      </div>}
     </>
   );
 }
