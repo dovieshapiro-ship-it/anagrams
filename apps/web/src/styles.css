@@ -1746,6 +1746,22 @@ input:focus-visible {
     1.05rem Arial,
     sans-serif;
 }
+
+.reset-word-button {
+  align-self: center;
+  margin-top: 0.65rem;
+  padding: 0.35rem 1rem;
+  border: 1px solid var(--oxblood);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--oxblood);
+  font: 700 0.72rem/1 Georgia, serif;
+  letter-spacing: 0.12em;
+}
+
+.reset-word-button:disabled {
+  opacity: 0.35;
+}
 .word-slots {
   display: grid;
   grid-template-columns: repeat(6, 1fr);

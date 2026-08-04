@@ -177,6 +177,19 @@ export function App(): React.JSX.Element {
   }, [gameId, load, state]);
   useEffect(() => {
     if (
+      state?.game.status === "completed" &&
+      state.resultingRematchGameId &&
+      state.resultingRematchGameId !== gameId
+    ) {
+      const nextGameId = state.resultingRematchGameId;
+      setGameId(nextGameId);
+      setState(undefined);
+      setInvitation(undefined);
+      replaceLocation(nextGameId);
+    }
+  }, [gameId, state?.game.status, state?.resultingRematchGameId]);
+  useEffect(() => {
+    if (
       !gameId ||
       !state ||
       busy ||
@@ -1256,6 +1269,14 @@ export function PlayScreen(props: {
             </span>
           ))}
         </button>
+        <button
+          className="reset-word-button"
+          type="button"
+          onClick={() => setSelected([])}
+          disabled={selected.length === 0}
+        >
+          RESET
+        </button>
       </div>
       <form
         className="entry-form"
@@ -1355,7 +1376,7 @@ function ResultsScreen(props: {
           disabled={props.busy}
           onClick={() => props.onAccept(pending.id)}
         >
-          ACCEPT REMATCH
+          REMATCH
         </button>
       ) : pending ? (
         <p>Rematch requested. Waiting for your opponent…</p>
