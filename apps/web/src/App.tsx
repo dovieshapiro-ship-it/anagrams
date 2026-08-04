@@ -30,7 +30,7 @@ const api = versionedApi as typeof import("./api");
 
 type Landing = "start" | "mode" | "rules" | "multiplayer" | "friends";
 type GameMode = "solo" | "friend";
-type AuthView = "welcome" | "signup" | "login" | "forgot" | "reset" | "reset-sent";
+type AuthView = "welcome" | "signup" | "login" | "forgot" | "reset" | "reset-sent" | "code-request" | "code-enter";
 
 export function App(): React.JSX.Element {
   const initial = new URL(window.location.href);
@@ -61,6 +61,7 @@ export function App(): React.JSX.Element {
   const sessionBootstrapStarted = useRef(false);
   const [musicEnabled, setMusicEnabled] = useState(gameMusicEnabled);
   const [soundsEnabled, setSoundsEnabled] = useState(soundEffectsEnabled);
+  const [loginCodeChallenge, setLoginCodeChallenge] = useState("");
 
   useEffect(() => installButtonSounds(), []);
   useEffect(() => startGameMusic(), []);
@@ -346,6 +347,8 @@ export function App(): React.JSX.Element {
           onSubmit={(signup, name, username, email, password) => void authenticatePassword(signup, name, username, email, password)}
           onForgot={async (email) => { setBusy(true); setError(""); try { await api.requestPasswordReset(email); setAuthView("reset-sent"); } catch (caught) { setError(messageOf(caught)); } finally { setBusy(false); } }}
           onReset={async (password) => { if (!resetToken) return; setBusy(true); setError(""); try { await api.resetPassword(resetToken, password); window.history.replaceState({}, "", "/"); setSession(await api.getMe()); setAuthView("welcome"); } catch (caught) { setError(messageOf(caught)); } finally { setBusy(false); } }}
+          onCodeRequest={async (email) => { setBusy(true); setError(""); try { setLoginCodeChallenge(await api.requestLoginCode(email)); setAuthView("code-enter"); } catch (caught) { setError(messageOf(caught)); } finally { setBusy(false); } }}
+          onCodeConsume={async (code) => { setBusy(true); setError(""); try { await api.consumeLoginCode(loginCodeChallenge, code); setSession(await api.getMe()); setAuthView("welcome"); } catch (caught) { setError(messageOf(caught)); } finally { setBusy(false); } }}
         />
       </main>
     );
@@ -681,12 +684,15 @@ function AuthScreen(props: {
   readonly onSubmit: (signup: boolean, displayName: string, username: string, email: string, password: string) => void;
   readonly onForgot: (email: string) => void;
   readonly onReset: (password: string) => void;
+  readonly onCodeRequest: (email: string) => void;
+  readonly onCodeConsume: (code: string) => void;
 }): React.JSX.Element {
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
+  const [code, setCode] = useState("");
   if (props.view === "welcome")
     return (
       <section className="auth-screen start-screen screen" aria-labelledby="welcome-title">
@@ -705,36 +711,42 @@ function AuthScreen(props: {
     return <section className="auth-screen screen"><h1 className="screen-title compact-auth-title">CHECK YOUR EMAIL</h1><div className="ivory-panel auth-sheet reset-message"><p>If an account uses that email, we sent a secure reset link. It expires in 15 minutes.</p><button className="table-button" type="button" onClick={() => props.onView("login")}>BACK TO LOG IN</button></div></section>;
   const reset = props.view === "reset";
   const forgot = props.view === "forgot";
+  const requestingCode = props.view === "code-request";
+  const enteringCode = props.view === "code-enter";
   const signup = props.view === "signup";
   return (
     <section className="auth-screen screen" aria-labelledby="auth-title">
-      <h1 id="auth-title" className="screen-title compact-auth-title">{reset ? "NEW PASSWORD" : forgot ? "RESET PASSWORD" : signup ? "JOIN THE CLUB" : "WELCOME BACK"}</h1>
+      <h1 id="auth-title" className="screen-title compact-auth-title">{enteringCode ? "ENTER YOUR CODE" : requestingCode ? "EMAIL LOGIN" : reset ? "NEW PASSWORD" : forgot ? "RESET PASSWORD" : signup ? "JOIN THE CLUB" : "WELCOME BACK"}</h1>
       <form
         className="ivory-panel auth-sheet"
         onSubmit={(event) => {
           event.preventDefault();
-          if (reset) props.onReset(password);
+          if (enteringCode) props.onCodeConsume(code);
+          else if (requestingCode) props.onCodeRequest(email);
+          else if (reset) props.onReset(password);
           else if (forgot) props.onForgot(email);
           else props.onSubmit(signup, signup ? name : "", username, email, password);
         }}
       >
         {signup && <><label className="field-label" htmlFor="signup-name">FIRST NAME</label><input className="club-input" id="signup-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={40} autoComplete="nickname" /></>}
         {signup && <><label className="field-label" htmlFor="account-username">USERNAME</label><input className="club-input" id="account-username" value={username} onChange={(event) => setUsername(event.target.value.toLowerCase().replace(/[^a-z0-9_]/gu, ""))} minLength={3} maxLength={20} autoComplete="username" /></>}
-        {!reset && <><label className="field-label" htmlFor="account-email">EMAIL</label><input className="club-input" id="account-email" type={signup || forgot ? "email" : "text"} inputMode={signup || forgot ? "email" : "text"} value={email} onChange={(event) => setEmail(event.target.value)} maxLength={254} autoComplete="email" autoFocus />{!signup && !forgot && <small>Older account? Your original username still works.</small>}</>}
-        {!forgot && <><label className="field-label" htmlFor="account-password">{reset ? "NEW PASSWORD" : "PASSWORD"}</label><input className="club-input" id="account-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} maxLength={128} autoComplete={signup || reset ? "new-password" : "current-password"} />{(signup || reset) && <small>At least 8 characters</small>}</>}
+        {!reset && !enteringCode && <><label className="field-label" htmlFor="account-email">EMAIL</label><input className="club-input" id="account-email" type={signup || forgot || requestingCode ? "email" : "text"} inputMode={signup || forgot || requestingCode ? "email" : "text"} value={email} onChange={(event) => setEmail(event.target.value)} maxLength={254} autoComplete="email" autoFocus /></>}
+        {enteringCode && <><p className="auth-code-note">Enter the six-digit code we sent to your email.</p><label className="field-label" htmlFor="login-code">ONE-TIME CODE</label><input className="club-input login-code-input" id="login-code" inputMode="numeric" value={code} onChange={(event) => setCode(event.target.value.replace(/\D/gu, "").slice(0, 6))} minLength={6} maxLength={6} autoComplete="one-time-code" autoFocus /></>}
+        {!forgot && !requestingCode && !enteringCode && <><label className="field-label" htmlFor="account-password">{reset ? "NEW PASSWORD" : "PASSWORD"}</label><input className="club-input" id="account-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} maxLength={128} autoComplete={signup || reset ? "new-password" : "current-password"} />{(signup || reset) && <small>At least 8 characters</small>}</>}
         {reset && <><label className="field-label" htmlFor="confirm-password">CONFIRM PASSWORD</label><input className="club-input" id="confirm-password" type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} minLength={8} maxLength={128} autoComplete="new-password" /></>}
-        {!signup && !forgot && !reset && <button className="text-link forgot-password-link" type="button" onClick={() => props.onView("forgot")}>FORGOT PASSWORD?</button>}
+        {props.view === "login" && <button className="text-link forgot-password-link" type="button" onClick={() => props.onView("forgot")}>FORGOT PASSWORD?</button>}
+        {props.view === "login" && <button className="text-link code-login-link" type="button" onClick={() => props.onView("code-request")}>EMAIL ME A ONE-TIME CODE</button>}
         <button
           className="table-button"
           type="submit"
-          disabled={props.busy || ((signup || forgot) && !email.includes("@")) || (!signup && !forgot && !reset && email.trim().length < 3) || (!forgot && password.length < 8) || (reset && password !== confirmation) || (signup && (username.length < 3 || !name.trim()))}
+          disabled={props.busy || ((signup || forgot || requestingCode) && !email.includes("@")) || (!signup && !forgot && !reset && !requestingCode && !enteringCode && email.trim().length < 3) || (!forgot && !requestingCode && !enteringCode && password.length < 8) || (enteringCode && code.length !== 6) || (reset && password !== confirmation) || (signup && (username.length < 3 || !name.trim()))}
         >
-          {props.busy ? "PLEASE WAIT…" : reset ? "SAVE NEW PASSWORD" : forgot ? "SEND RESET LINK" : signup ? "CREATE ACCOUNT" : "LOG IN"}
+          {props.busy ? "PLEASE WAIT…" : enteringCode ? "LOG IN" : requestingCode ? "SEND CODE" : reset ? "SAVE NEW PASSWORD" : forgot ? "SEND RESET LINK" : signup ? "CREATE ACCOUNT" : "LOG IN"}
         </button>
         <StatusMessage error={props.error} />
-        {!reset && <button className={`text-link${signup ? " member-link" : ""}`} type="button" onClick={() => props.onView(signup || forgot ? "login" : "signup")}>{forgot ? "BACK TO LOG IN" : signup ? "ALREADY A MEMBER? LOG IN" : "NEW HERE? CREATE ACCOUNT"}</button>}
+        {!reset && <button className={`text-link${signup ? " member-link" : ""}`} type="button" onClick={() => props.onView(signup || forgot || requestingCode || enteringCode ? "login" : "signup")}>{forgot || requestingCode || enteringCode ? "BACK TO LOG IN" : signup ? "ALREADY A MEMBER? LOG IN" : "NEW HERE? CREATE ACCOUNT"}</button>}
       </form>
-      <button className="round-back" type="button" onClick={() => props.onView(reset || forgot ? "login" : "welcome")} aria-label="Back">←</button>
+      <button className="round-back" type="button" onClick={() => props.onView(reset || forgot || requestingCode || enteringCode ? "login" : "welcome")} aria-label="Back">←</button>
     </section>
   );
 }

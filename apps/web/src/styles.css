@@ -2053,6 +2053,23 @@ input:focus-visible {
   text-align: center;
 }
 
+.auth-sheet .code-login-link {
+  margin: -0.2rem auto 0.45rem;
+  font-size: clamp(0.68rem, 2vw, 0.85rem);
+  text-align: center;
+}
+
+.auth-code-note {
+  text-align: center;
+}
+
+.auth-sheet .login-code-input {
+  text-align: center;
+  letter-spacing: 0.55em;
+  font-size: clamp(1.5rem, 6vw, 2.5rem);
+  font-variant-numeric: tabular-nums;
+}
+
 .compact-auth-title {
   font-size: clamp(2rem, 8vw, 4.3rem);
   max-width: 88%;

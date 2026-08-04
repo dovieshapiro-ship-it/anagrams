@@ -105,6 +105,10 @@ const passwordAuthSchema = runtimeSchema<{ readonly user: { readonly id: string 
   return Boolean(user && typeof user.id === "string");
 });
 const acceptedSchema = runtimeSchema<{ readonly accepted: true }>((value) => record(value)?.accepted === true);
+const loginCodeRequestSchema = runtimeSchema<{ readonly accepted: true; readonly challengeToken: string }>((value) => {
+  const item = record(value);
+  return item?.accepted === true && typeof item.challengeToken === "string";
+});
 const friend = (value: unknown): value is FriendSummary => {
   const item = record(value);
   return Boolean(
@@ -273,6 +277,14 @@ export async function requestPasswordReset(email: string): Promise<void> {
 
 export async function resetPassword(token: string, password: string): Promise<void> {
   await request("/auth/password/reset", passwordAuthSchema, { method: "POST", body: { token, password }, csrf: false });
+}
+
+export async function requestLoginCode(email: string): Promise<string> {
+  return (await request("/auth/code/request", loginCodeRequestSchema, { method: "POST", body: { email }, csrf: false })).challengeToken;
+}
+
+export async function consumeLoginCode(challengeToken: string, code: string): Promise<void> {
+  await request("/auth/code/consume", passwordAuthSchema, { method: "POST", body: { challengeToken, code }, csrf: false });
 }
 
 export async function consumeMagicLink(token: string): Promise<string | null> {
