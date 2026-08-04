@@ -161,6 +161,25 @@ export const passwordResetChallenges = pgTable(
   ],
 );
 
+export const emailLoginCodes = pgTable(
+  "email_login_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    challengeHash: text("challenge_hash").notNull(),
+    codeHash: text("code_hash").notNull(),
+    attempts: smallint("attempts").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("email_login_code_challenge_uq").on(t.challengeHash),
+    index("email_login_code_user_created_idx").on(t.userId, t.createdAt),
+    index("email_login_code_expiry_idx").on(t.expiresAt),
+  ],
+);
+
 export const chatIdentities = pgTable(
   "chat_identities",
   {
