@@ -2759,6 +2759,8 @@ input:focus-visible {
     padding-right: 14px;
     padding-left: 14px;
     overflow: hidden;
+    border: 0;
+    outline: 0;
   }
 
   .ivory-panel,
