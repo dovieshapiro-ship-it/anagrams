@@ -566,6 +566,67 @@ export async function buildApp(
     return { user: { ...profile, wins } };
   });
 
+  app.get("/api/v1/leaderboard", async (request) => {
+    const userId = requireAuth(request);
+    const topRows = await database.db.execute(sql`
+      select u.id as user_id,
+             u.display_name,
+             u.username,
+             max(gp.score)::int as high_score
+      from game_players gp
+      join games g on g.id = gp.game_id
+      join users u on u.id = gp.user_id
+      where g.status = 'completed'
+        and u.is_synthetic = false
+        and u.username is not null
+      group by u.id, u.display_name, u.username
+      order by high_score desc, u.username asc
+      limit 5
+    `);
+    const ownRows = await database.db.execute(sql`
+      select coalesce(max(gp.score), 0)::int as high_score
+      from game_players gp
+      join games g on g.id = gp.game_id
+      where gp.user_id = ${userId}
+        and g.status = 'completed'
+    `);
+    const leaderboardUserIds = topRows.map((row) => String(row.user_id));
+    const relationships = leaderboardUserIds.length === 0
+      ? []
+      : await database.db
+          .select()
+          .from(friendships)
+          .where(
+            and(
+              inArray(friendships.userAId, [userId, ...leaderboardUserIds]),
+              inArray(friendships.userBId, [userId, ...leaderboardUserIds]),
+            ),
+          );
+    const relationshipFor = (otherUserId: string): "self" | "friend" | "incoming" | "outgoing" | "none" => {
+      if (otherUserId === userId) return "self";
+      const relationship = relationships.find(
+        (item) =>
+          (item.userAId === userId && item.userBId === otherUserId) ||
+          (item.userBId === userId && item.userAId === otherUserId),
+      );
+      if (relationship?.status === "accepted") return "friend";
+      if (relationship?.status === "pending")
+        return relationship.requestedByUserId === userId ? "outgoing" : "incoming";
+      return "none";
+    };
+    return {
+      highScore: Number(ownRows[0]?.high_score ?? 0),
+      leaders: topRows.map((row, index) => ({
+        rank: index + 1,
+        userId: String(row.user_id),
+        displayName: String(row.display_name),
+        username: String(row.username),
+        highScore: Number(row.high_score),
+        relationship: relationshipFor(String(row.user_id)),
+      })),
+    };
+  });
+
   app.post("/api/v1/auth/logout", async (request, reply) => {
     requireAuth(request);
     const raw = request.cookies[SESSION_COOKIE];
