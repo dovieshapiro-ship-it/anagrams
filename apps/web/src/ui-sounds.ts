@@ -179,8 +179,23 @@ async function playBackgroundMusic(): Promise<void> {
 }
 
 export function startGameMusic(): () => void {
-  void playBackgroundMusic();
+  const syncPlayback = (): void => {
+    if (document.visibilityState === "hidden") {
+      backgroundMusic?.pause();
+      return;
+    }
+    void playBackgroundMusic();
+  };
+  const pausePlayback = (): void => backgroundMusic?.pause();
+
+  syncPlayback();
+  document.addEventListener("visibilitychange", syncPlayback);
+  window.addEventListener("pagehide", pausePlayback);
+  window.addEventListener("pageshow", syncPlayback);
   return () => {
+    document.removeEventListener("visibilitychange", syncPlayback);
+    window.removeEventListener("pagehide", pausePlayback);
+    window.removeEventListener("pageshow", syncPlayback);
     backgroundMusic?.pause();
   };
 }
