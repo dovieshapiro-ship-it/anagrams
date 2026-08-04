@@ -2746,12 +2746,16 @@ input:focus-visible {
   }
 
   .screen {
-    width: 100%;
+    width: calc(100% - 10px);
     max-width: none;
-    height: 100dvh;
-    min-height: 100dvh;
-    padding-right: max(14px, env(safe-area-inset-right));
-    padding-left: max(14px, env(safe-area-inset-left));
+    height: calc(
+      100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 6px
+    );
+    min-height: 0;
+    margin: calc(env(safe-area-inset-top) + 3px) 5px
+      calc(env(safe-area-inset-bottom) + 3px);
+    padding-right: 14px;
+    padding-left: 14px;
     overflow: hidden;
   }
 
@@ -2771,8 +2775,8 @@ input:focus-visible {
   }
 
   .play-screen {
-    padding-top: max(10px, env(safe-area-inset-top));
-    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    padding-top: 10px;
+    padding-bottom: 10px;
   }
 
   .play-screen > .play-exit,
@@ -2852,8 +2856,8 @@ input:focus-visible {
   }
 
   .start-screen:not(.auth-screen) {
-    padding-top: max(48px, env(safe-area-inset-top));
-    padding-bottom: max(18px, env(safe-area-inset-bottom));
+    padding-top: 48px;
+    padding-bottom: 18px;
   }
 
   .start-screen:not(.auth-screen) > h1 {
@@ -2862,15 +2866,15 @@ input:focus-visible {
 
   .start-screen > .logout-link,
   .start-screen > .home-account .trophy-stat {
-    top: max(8px, env(safe-area-inset-top));
+    top: 8px;
   }
 
   .start-screen > .logout-link {
-    left: max(16px, env(safe-area-inset-left));
+    left: 16px;
   }
 
   .start-screen > .home-account .trophy-stat {
-    right: max(14px, env(safe-area-inset-right));
+    right: 14px;
   }
 
   .start-screen:has(.mode-actions) .brand-mark,
@@ -2894,8 +2898,8 @@ input:focus-visible {
   .friends-screen,
   .leaderboard-screen,
   .results-screen {
-    padding-right: max(16px, env(safe-area-inset-right));
-    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: 16px;
+    padding-left: 16px;
   }
 
   .friends-sheet,
