@@ -720,14 +720,14 @@ function AuthScreen(props: {
       >
         {signup && <><label className="field-label" htmlFor="signup-name">YOUR FIRST NAME</label><input className="club-input" id="signup-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={40} autoComplete="nickname" /></>}
         {signup && <><label className="field-label" htmlFor="account-username">PUBLIC USERNAME</label><input className="club-input" id="account-username" value={username} onChange={(event) => setUsername(event.target.value.toLowerCase().replace(/[^a-z0-9_]/gu, ""))} minLength={3} maxLength={20} autoComplete="username" /><small>Friends use this to find you</small></>}
-        {!reset && <><label className="field-label" htmlFor="account-email">EMAIL</label><input className="club-input" id="account-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} maxLength={254} autoComplete="email" autoFocus /></>}
+        {!reset && <><label className="field-label" htmlFor="account-email">EMAIL</label><input className="club-input" id="account-email" type={signup || forgot ? "email" : "text"} inputMode={signup || forgot ? "email" : "text"} value={email} onChange={(event) => setEmail(event.target.value)} maxLength={254} autoComplete="email" autoFocus />{!signup && !forgot && <small>Older account? Your original username still works.</small>}</>}
         {!forgot && <><label className="field-label" htmlFor="account-password">{reset ? "NEW PASSWORD" : "PASSWORD"}</label><input className="club-input" id="account-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} maxLength={128} autoComplete={signup || reset ? "new-password" : "current-password"} />{(signup || reset) && <small>At least 8 characters</small>}</>}
         {reset && <><label className="field-label" htmlFor="confirm-password">CONFIRM PASSWORD</label><input className="club-input" id="confirm-password" type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} minLength={8} maxLength={128} autoComplete="new-password" /></>}
         {!signup && !forgot && !reset && <button className="text-link forgot-password-link" type="button" onClick={() => props.onView("forgot")}>FORGOT PASSWORD?</button>}
         <button
           className="table-button"
           type="submit"
-          disabled={props.busy || (!reset && !email.includes("@")) || (!forgot && password.length < 8) || (reset && password !== confirmation) || (signup && (username.length < 3 || !name.trim()))}
+          disabled={props.busy || ((signup || forgot) && !email.includes("@")) || (!signup && !forgot && !reset && email.trim().length < 3) || (!forgot && password.length < 8) || (reset && password !== confirmation) || (signup && (username.length < 3 || !name.trim()))}
         >
           {props.busy ? "PLEASE WAIT…" : reset ? "SAVE NEW PASSWORD" : forgot ? "SEND RESET LINK" : signup ? "CREATE ACCOUNT" : "LOG IN"}
         </button>
