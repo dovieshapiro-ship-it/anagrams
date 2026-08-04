@@ -163,7 +163,7 @@ describe("Anagrams app", () => {
               : input.url;
         if (path.endsWith(`/games/${gameId}/round/start`)) {
           started = true;
-          return Promise.resolve(Response.json({ ok: true }));
+          return Promise.resolve(Response.json(active));
         }
         if (path.endsWith("/me")) return Promise.resolve(Response.json(profile));
         if (path.endsWith(`/games/${gameId}`))
