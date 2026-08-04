@@ -165,7 +165,7 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     if (!gameId || !state) return undefined;
     const active = state.me.round?.status === "active";
-    const timer = window.setInterval(() => void load(), active ? 2_000 : 2_500);
+    const timer = window.setInterval(() => void load(), active ? 2_000 : 750);
     const recover = (): void => {
       if (!document.hidden) void load();
     };
@@ -206,7 +206,7 @@ export function App(): React.JSX.Element {
     setError("");
     void api
       .startRound(gameId, state.game.version)
-      .then(load)
+      .then(setState)
       .catch(async (caught: unknown) => {
         setError(messageOf(caught));
         await load();
@@ -384,6 +384,21 @@ export function App(): React.JSX.Element {
     return undefined;
   }
 
+  async function actWithState(
+    action: () => Promise<WireGameStateResponse>,
+  ): Promise<void> {
+    setBusy(true);
+    setError("");
+    try {
+      setState(await action());
+    } catch (caught) {
+      setError(messageOf(caught));
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function moveTo(id: string): void {
     setGameId(id);
     setState(undefined);
@@ -545,10 +560,10 @@ export function App(): React.JSX.Element {
           return created;
         }}
         onReady={() =>
-          void act(() => api.markReady(gameId, state.game.version))
+          void actWithState(() => api.markReady(gameId, state.game.version))
         }
         onStart={() =>
-          void act(() => api.startRound(gameId, state.game.version))
+          void actWithState(() => api.startRound(gameId, state.game.version))
         }
         onExit={() => void exitCurrentGame()}
       />
