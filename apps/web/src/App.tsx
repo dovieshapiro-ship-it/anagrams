@@ -10,6 +10,8 @@ import type {
   FriendSearchResponse,
   FriendSummary,
   FriendsResponse,
+  LeaderboardEntry,
+  LeaderboardResponse,
   SessionUser,
 } from "./api";
 // @ts-expect-error Vite supports query-string imports used to invalidate tunnel caches.
@@ -28,7 +30,7 @@ import {
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 const api = versionedApi as typeof import("./api");
 
-type Landing = "start" | "mode" | "rules" | "multiplayer" | "friends";
+type Landing = "start" | "mode" | "rules" | "multiplayer" | "friends" | "leaderboard";
 type GameMode = "solo" | "friend";
 type AuthView = "welcome" | "signup" | "login" | "forgot" | "reset" | "reset-sent" | "code-request" | "code-enter";
 
@@ -416,6 +418,7 @@ export function App(): React.JSX.Element {
             error={error}
             onPlay={() => setLanding("mode")}
             onFriends={() => setLanding("friends")}
+            onLeaderboard={() => setLanding("leaderboard")}
             musicEnabled={musicEnabled}
             soundsEnabled={soundsEnabled}
             onToggleMusic={() => {
@@ -467,6 +470,9 @@ export function App(): React.JSX.Element {
             username={session.username}
             onUsernameSet={(username) => setSession((current) => current ? { ...current, username } : current)}
           />
+        )}
+        {landing === "leaderboard" && (
+          <LeaderboardScreen onBack={() => setLanding("start")} />
         )}
         {landing === "rules" && (
           <RulesScreen
@@ -555,6 +561,7 @@ function StartScreen(props: {
   readonly error: string;
   readonly onPlay: () => void;
   readonly onFriends: () => void;
+  readonly onLeaderboard: () => void;
   readonly musicEnabled: boolean;
   readonly soundsEnabled: boolean;
   readonly onToggleMusic: () => void;
@@ -580,6 +587,7 @@ function StartScreen(props: {
           </div>
           {!props.session.hasPassword && <form className="legacy-password" onSubmit={(event) => { event.preventDefault(); setPasswordStatus("SAVING…"); void props.onSetPassword(newPassword).then(() => { setPasswordStatus("PASSWORD SAVED"); setNewPassword(""); }).catch((caught: unknown) => setPasswordStatus(messageOf(caught))); }}><label htmlFor="legacy-password">SET A PASSWORD</label><input id="legacy-password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={8} maxLength={128} autoComplete="new-password" placeholder="8+ characters" /><button type="submit" disabled={newPassword.length < 8}>SAVE PASSWORD</button>{passwordStatus && <small>{passwordStatus}</small>}</form>}
           <button type="button" onClick={props.onFriends}>FRIENDS</button>
+          <button type="button" onClick={props.onLeaderboard}>LEADERBOARD</button>
         </div>}
       </div>
       <div className="mode-actions">
@@ -913,6 +921,69 @@ function FriendSection(props: { readonly title: string; readonly children: React
 
 function FriendRow(props: { readonly friend: FriendSummary; readonly detail: string; readonly actions: React.ReactNode }): React.JSX.Element {
   return <div className="friend-row"><span className="friend-monogram" aria-hidden="true">{props.friend.displayName.slice(0, 1).toUpperCase()}</span><span className="friend-identity"><strong>{props.friend.displayName}</strong><small>{props.detail}</small></span><span className="friend-actions">{props.actions}</span></div>;
+}
+
+function LeaderboardScreen(props: { readonly onBack: () => void }): React.JSX.Element {
+  const [data, setData] = useState<LeaderboardResponse>();
+  const [busyUserId, setBusyUserId] = useState("");
+  const [message, setMessage] = useState("");
+
+  const loadLeaderboard = useCallback(async (): Promise<void> => {
+    try {
+      setData(await api.getLeaderboard());
+      setMessage("");
+    } catch (caught) {
+      setMessage(messageOf(caught));
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadLeaderboard();
+  }, [loadLeaderboard]);
+
+  async function addPlayer(entry: LeaderboardEntry): Promise<void> {
+    setBusyUserId(entry.userId);
+    setMessage("");
+    try {
+      await api.sendFriendRequest(entry.username);
+      setMessage(entry.relationship === "incoming" ? `${entry.displayName} is now your friend.` : `Friend request sent to ${entry.displayName}.`);
+      await loadLeaderboard();
+    } catch (caught) {
+      setMessage(messageOf(caught));
+    } finally {
+      setBusyUserId("");
+    }
+  }
+
+  return (
+    <section className="leaderboard-screen screen" aria-labelledby="leaderboard-title">
+      <button className="round-back" type="button" onClick={props.onBack} aria-label="Back to home">←</button>
+      <h1 id="leaderboard-title" className="screen-title">LEADERBOARD</h1>
+      <div className="ivory-panel leaderboard-sheet">
+        <div className="personal-best"><span>YOUR HIGH SCORE</span><strong>{(data?.highScore ?? 0).toLocaleString()}</strong></div>
+        <h2>TOP 5 PLAYERS</h2>
+        <div className="leader-list">
+          {data?.leaders.map((entry) => (
+            <div className="leader-row" key={entry.userId}>
+              <span className="leader-rank">{entry.rank}</span>
+              <span className="friend-monogram" aria-hidden="true">{entry.displayName.slice(0, 1).toUpperCase()}</span>
+              <span className="friend-identity"><strong>{entry.displayName}</strong><small>@{entry.username}</small></span>
+              <strong className="leader-score">{entry.highScore.toLocaleString()}</strong>
+              <span className="leader-action">
+                {entry.relationship === "none" && <button type="button" disabled={Boolean(busyUserId)} onClick={() => void addPlayer(entry)}>{busyUserId === entry.userId ? "SENDING…" : "ADD"}</button>}
+                {entry.relationship === "incoming" && <button type="button" disabled={Boolean(busyUserId)} onClick={() => void addPlayer(entry)}>{busyUserId === entry.userId ? "ADDING…" : "ACCEPT"}</button>}
+                {entry.relationship === "outgoing" && <span>PENDING</span>}
+                {entry.relationship === "friend" && <span>FRIEND</span>}
+                {entry.relationship === "self" && <span>YOU</span>}
+              </span>
+            </div>
+          ))}
+          {data && data.leaders.length === 0 && <p className="empty-friends">Complete a round to become the first ranked player.</p>}
+        </div>
+        {message && <p className="friend-message" role="status">{message}</p>}
+      </div>
+    </section>
+  );
 }
 
 function WaitingScreen(props: {

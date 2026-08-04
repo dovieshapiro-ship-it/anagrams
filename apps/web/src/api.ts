@@ -53,6 +53,17 @@ export interface FriendGameInvitation {
   readonly expiresAt: string;
 }
 
+export interface LeaderboardEntry extends FriendSummary {
+  readonly rank: number;
+  readonly highScore: number;
+  readonly relationship: "none" | "friend" | "incoming" | "outgoing" | "self";
+}
+
+export interface LeaderboardResponse {
+  readonly highScore: number;
+  readonly leaders: readonly LeaderboardEntry[];
+}
+
 interface MagicRequestResponse {
   readonly accepted: true;
   readonly developmentMagicLink?: string;
@@ -194,6 +205,32 @@ const friendInvitationCreatedSchema = runtimeSchema<FriendInvitationCreated>(
     );
   },
 );
+const leaderboardSchema = runtimeSchema<LeaderboardResponse>((value) => {
+  const item = record(value);
+  return Boolean(
+    item &&
+      typeof item.highScore === "number" &&
+      Number.isInteger(item.highScore) &&
+      item.highScore >= 0 &&
+      Array.isArray(item.leaders) &&
+      item.leaders.length <= 5 &&
+      item.leaders.every((value) => {
+        const entry = record(value);
+        return Boolean(
+          entry &&
+            friend(entry) &&
+            typeof entry.rank === "number" &&
+            Number.isInteger(entry.rank) &&
+            entry.rank >= 1 &&
+            typeof entry.highScore === "number" &&
+            Number.isInteger(entry.highScore) &&
+            entry.highScore >= 0 &&
+            typeof entry.relationship === "string" &&
+            ["none", "friend", "incoming", "outgoing", "self"].includes(entry.relationship),
+        );
+      }),
+  );
+});
 
 function record(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null
@@ -318,6 +355,10 @@ export async function setPassword(password: string): Promise<void> {
 
 export function getFriends(): Promise<FriendsResponse> {
   return request("/friends", friendsSchema);
+}
+
+export function getLeaderboard(): Promise<LeaderboardResponse> {
+  return request("/leaderboard", leaderboardSchema);
 }
 
 export function searchFriend(username: string): Promise<FriendSearchResponse> {
