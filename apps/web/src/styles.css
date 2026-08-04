@@ -3080,4 +3080,35 @@ input:focus-visible {
   .friends-screen > .screen-title {
     margin-top: 52px;
   }
+
+  .rules-screen .rule-medallion {
+    display: grid;
+    place-items: center;
+    padding: 0;
+    line-height: 1;
+    text-align: center;
+  }
+
+  .rules-screen .rule-row:nth-child(1) .rule-medallion {
+    font-size: 2.05rem;
+  }
+
+  .rules-screen .rule-row:nth-child(3) .rule-medallion {
+    padding-bottom: 1px;
+    font-size: 1.35rem;
+    letter-spacing: -0.06em;
+    text-indent: -0.06em;
+  }
+
+  .results-screen .kiwi-column h2 {
+    max-width: 100%;
+    font-size: clamp(0.72rem, 3.3vw, 0.94rem);
+    line-height: 1.15;
+    letter-spacing: 0.08em;
+    white-space: normal;
+  }
+
+  .modal-panel .direct-friend-waiting {
+    padding-top: 38px;
+  }
 }
