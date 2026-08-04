@@ -1221,7 +1221,7 @@ export async function buildApp(
         })
         .where(eq(games.id, gameId));
     });
-    return { ok: true };
+    return gameState(database.db, gameId, userId, dictionary);
   });
 
   app.post("/api/v1/games/:gameId/round/start", async (request) => {
@@ -1255,7 +1255,7 @@ export async function buildApp(
         .set({ status: "playing" })
         .where(eq(gamePlayers.id, player.id));
     });
-    return { ok: true };
+    return gameState(database.db, gameId, userId, dictionary);
   });
 
   app.post(
