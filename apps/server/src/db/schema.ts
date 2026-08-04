@@ -144,6 +144,23 @@ export const magicLinkChallenges = pgTable(
   ],
 );
 
+export const passwordResetChallenges = pgTable(
+  "password_reset_challenges",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("password_reset_token_hash_uq").on(t.tokenHash),
+    index("password_reset_user_created_idx").on(t.userId, t.createdAt),
+    index("password_reset_expiry_idx").on(t.expiresAt),
+  ],
+);
+
 export const chatIdentities = pgTable(
   "chat_identities",
   {
