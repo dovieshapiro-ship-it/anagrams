@@ -104,6 +104,7 @@ const passwordAuthSchema = runtimeSchema<{ readonly user: { readonly id: string 
   const user = record(record(value)?.user);
   return Boolean(user && typeof user.id === "string");
 });
+const acceptedSchema = runtimeSchema<{ readonly accepted: true }>((value) => record(value)?.accepted === true);
 const friend = (value: unknown): value is FriendSummary => {
   const item = record(value);
   return Boolean(
@@ -256,13 +257,22 @@ export async function requestMagicLink(input: {
 export async function signupWithPassword(input: {
   readonly displayName: string;
   readonly username: string;
+  readonly email: string;
   readonly password: string;
 }): Promise<void> {
   await request("/auth/password/signup", passwordAuthSchema, { method: "POST", body: input, csrf: false });
 }
 
-export async function loginWithPassword(username: string, password: string): Promise<void> {
-  await request("/auth/password/login", passwordAuthSchema, { method: "POST", body: { username, password }, csrf: false });
+export async function loginWithPassword(email: string, password: string): Promise<void> {
+  await request("/auth/password/login", passwordAuthSchema, { method: "POST", body: { email, password }, csrf: false });
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  await request("/auth/password/forgot", acceptedSchema, { method: "POST", body: { email }, csrf: false });
+}
+
+export async function resetPassword(token: string, password: string): Promise<void> {
+  await request("/auth/password/reset", passwordAuthSchema, { method: "POST", body: { token, password }, csrf: false });
 }
 
 export async function consumeMagicLink(token: string): Promise<string | null> {

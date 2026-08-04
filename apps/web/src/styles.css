@@ -2047,6 +2047,23 @@ input:focus-visible {
   letter-spacing: 0.04em;
 }
 
+.auth-sheet .forgot-password-link {
+  margin: -0.25rem 0 0.35rem auto;
+  font-size: clamp(0.7rem, 2.2vw, 0.9rem);
+}
+
+.compact-auth-title {
+  font-size: clamp(2rem, 8vw, 4.3rem);
+  max-width: 88%;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.auth-sheet.reset-message {
+  text-align: center;
+  gap: 1.75rem;
+}
+
 /* Signed-in home: centered greeting, isolated trophy and logout controls. */
 .start-screen > .home-account {
   align-items: center !important;

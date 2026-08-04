@@ -30,13 +30,14 @@ const api = versionedApi as typeof import("./api");
 
 type Landing = "start" | "mode" | "rules" | "multiplayer" | "friends";
 type GameMode = "solo" | "friend";
-type AuthView = "welcome" | "signup" | "login";
+type AuthView = "welcome" | "signup" | "login" | "forgot" | "reset" | "reset-sent";
 
 export function App(): React.JSX.Element {
   const initial = new URL(window.location.href);
   const magicToken = new URLSearchParams(window.location.hash.slice(1)).get("magic");
+  const resetToken = new URLSearchParams(window.location.hash.slice(1)).get("reset");
   const [session, setSession] = useState<SessionUser | null>();
-  const [authView, setAuthView] = useState<AuthView>("welcome");
+  const [authView, setAuthView] = useState<AuthView>(resetToken ? "reset" : "welcome");
   const [landing, setLanding] = useState<Landing>(
     initial.searchParams.has("token") ? "rules" : "start",
   );
@@ -266,13 +267,14 @@ export function App(): React.JSX.Element {
     signup: boolean,
     displayName: string,
     username: string,
+    email: string,
     password: string,
   ): Promise<void> {
     setBusy(true);
     setError("");
     try {
-      if (signup) await api.signupWithPassword({ displayName, username, password });
-      else await api.loginWithPassword(username, password);
+      if (signup) await api.signupWithPassword({ displayName, username, email, password });
+      else await api.loginWithPassword(email, password);
       setSession(await api.getMe());
       setAuthView("welcome");
     } catch (caught) {
@@ -339,8 +341,11 @@ export function App(): React.JSX.Element {
           view={authView}
           busy={busy}
           error={error}
+          resetToken={resetToken}
           onView={setAuthView}
-          onSubmit={(signup, name, username, password) => void authenticatePassword(signup, name, username, password)}
+          onSubmit={(signup, name, username, email, password) => void authenticatePassword(signup, name, username, email, password)}
+          onForgot={async (email) => { setBusy(true); setError(""); try { await api.requestPasswordReset(email); setAuthView("reset-sent"); } catch (caught) { setError(messageOf(caught)); } finally { setBusy(false); } }}
+          onReset={async (password) => { if (!resetToken) return; setBusy(true); setError(""); try { await api.resetPassword(resetToken, password); window.history.replaceState({}, "", "/"); setSession(await api.getMe()); setAuthView("welcome"); } catch (caught) { setError(messageOf(caught)); } finally { setBusy(false); } }}
         />
       </main>
     );
@@ -671,12 +676,17 @@ function AuthScreen(props: {
   readonly view: AuthView;
   readonly busy: boolean;
   readonly error: string;
+  readonly resetToken: string | null;
   readonly onView: (view: AuthView) => void;
-  readonly onSubmit: (signup: boolean, displayName: string, username: string, password: string) => void;
+  readonly onSubmit: (signup: boolean, displayName: string, username: string, email: string, password: string) => void;
+  readonly onForgot: (email: string) => void;
+  readonly onReset: (password: string) => void;
 }): React.JSX.Element {
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
   if (props.view === "welcome")
     return (
       <section className="auth-screen start-screen screen" aria-labelledby="welcome-title">
@@ -691,35 +701,40 @@ function AuthScreen(props: {
         <StatusMessage error={props.error} />
       </section>
     );
+  if (props.view === "reset-sent")
+    return <section className="auth-screen screen"><h1 className="screen-title compact-auth-title">CHECK YOUR EMAIL</h1><div className="ivory-panel auth-sheet reset-message"><p>If an account uses that email, we sent a secure reset link. It expires in 15 minutes.</p><button className="table-button" type="button" onClick={() => props.onView("login")}>BACK TO LOG IN</button></div></section>;
+  const reset = props.view === "reset";
+  const forgot = props.view === "forgot";
   const signup = props.view === "signup";
   return (
     <section className="auth-screen screen" aria-labelledby="auth-title">
-      <h1 id="auth-title" className="screen-title">{signup ? "JOIN THE CLUB" : "WELCOME BACK"}</h1>
+      <h1 id="auth-title" className="screen-title compact-auth-title">{reset ? "NEW PASSWORD" : forgot ? "RESET PASSWORD" : signup ? "JOIN THE CLUB" : "WELCOME BACK"}</h1>
       <form
         className="ivory-panel auth-sheet"
         onSubmit={(event) => {
           event.preventDefault();
-          props.onSubmit(signup, signup ? name : "", username, password);
+          if (reset) props.onReset(password);
+          else if (forgot) props.onForgot(email);
+          else props.onSubmit(signup, signup ? name : "", username, email, password);
         }}
       >
         {signup && <><label className="field-label" htmlFor="signup-name">YOUR FIRST NAME</label><input className="club-input" id="signup-name" value={name} onChange={(event) => setName(event.target.value)} maxLength={40} autoComplete="nickname" /></>}
-        <label className="field-label" htmlFor="account-username">USERNAME</label>
-        <input className="club-input" id="account-username" value={username} onChange={(event) => setUsername(event.target.value.toLowerCase().replace(/[^a-z0-9_]/gu, ""))} minLength={3} maxLength={20} autoComplete="username" autoFocus />
-        {signup && <small>3–20 letters, numbers, or underscores</small>}
-        <label className="field-label" htmlFor="account-password">PASSWORD</label>
-        <input className="club-input" id="account-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} maxLength={128} autoComplete={signup ? "new-password" : "current-password"} />
-        {signup && <small>At least 8 characters</small>}
+        {signup && <><label className="field-label" htmlFor="account-username">PUBLIC USERNAME</label><input className="club-input" id="account-username" value={username} onChange={(event) => setUsername(event.target.value.toLowerCase().replace(/[^a-z0-9_]/gu, ""))} minLength={3} maxLength={20} autoComplete="username" /><small>Friends use this to find you</small></>}
+        {!reset && <><label className="field-label" htmlFor="account-email">EMAIL</label><input className="club-input" id="account-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} maxLength={254} autoComplete="email" autoFocus /></>}
+        {!forgot && <><label className="field-label" htmlFor="account-password">{reset ? "NEW PASSWORD" : "PASSWORD"}</label><input className="club-input" id="account-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} maxLength={128} autoComplete={signup || reset ? "new-password" : "current-password"} />{(signup || reset) && <small>At least 8 characters</small>}</>}
+        {reset && <><label className="field-label" htmlFor="confirm-password">CONFIRM PASSWORD</label><input className="club-input" id="confirm-password" type="password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} minLength={8} maxLength={128} autoComplete="new-password" /></>}
+        {!signup && !forgot && !reset && <button className="text-link forgot-password-link" type="button" onClick={() => props.onView("forgot")}>FORGOT PASSWORD?</button>}
         <button
           className="table-button"
           type="submit"
-          disabled={props.busy || username.length < 3 || password.length < 8 || (signup && !name.trim())}
+          disabled={props.busy || (!reset && !email.includes("@")) || (!forgot && password.length < 8) || (reset && password !== confirmation) || (signup && (username.length < 3 || !name.trim()))}
         >
-          {props.busy ? "PLEASE WAIT…" : signup ? "CREATE ACCOUNT" : "LOG IN"}
+          {props.busy ? "PLEASE WAIT…" : reset ? "SAVE NEW PASSWORD" : forgot ? "SEND RESET LINK" : signup ? "CREATE ACCOUNT" : "LOG IN"}
         </button>
         <StatusMessage error={props.error} />
-        <button className={`text-link${signup ? " member-link" : ""}`} type="button" onClick={() => props.onView(signup ? "login" : "signup")}>{signup ? "ALREADY A MEMBER? LOG IN" : "NEW HERE? CREATE ACCOUNT"}</button>
+        {!reset && <button className={`text-link${signup ? " member-link" : ""}`} type="button" onClick={() => props.onView(signup || forgot ? "login" : "signup")}>{forgot ? "BACK TO LOG IN" : signup ? "ALREADY A MEMBER? LOG IN" : "NEW HERE? CREATE ACCOUNT"}</button>}
       </form>
-      <button className="round-back" type="button" onClick={() => props.onView("welcome")} aria-label="Back to welcome">←</button>
+      <button className="round-back" type="button" onClick={() => props.onView(reset || forgot ? "login" : "welcome")} aria-label="Back">←</button>
     </section>
   );
 }
