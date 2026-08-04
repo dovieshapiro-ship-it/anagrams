@@ -2888,6 +2888,7 @@ input:focus-visible {
   }
 
   .start-screen > .home-account .account-person-button {
+    top: 18px;
     right: 14px;
     width: 42px;
   }
