@@ -2777,8 +2777,8 @@ input:focus-visible {
   }
 
   .play-screen {
-    padding-top: 10px;
-    padding-bottom: 10px;
+    justify-content: center;
+    padding: 12px 16px;
   }
 
   .play-screen > .play-exit,
@@ -2792,8 +2792,14 @@ input:focus-visible {
     left: 12px;
   }
 
+  .play-screen .play-topbar .round-shuffle {
+    right: 12px;
+    left: auto;
+  }
+
   .play-topbar {
     height: 52px;
+    margin-bottom: 10px;
   }
 
   .timer-pill {
@@ -2802,17 +2808,17 @@ input:focus-visible {
   }
 
   .score-strip {
-    margin: 8px 0 12px;
-    padding: clamp(12px, 2.2dvh, 18px) 18px;
+    margin: 10px auto 20px;
+    padding: clamp(14px, 2.5dvh, 20px) 18px;
     font-size: clamp(0.92rem, 4vw, 1.08rem);
   }
 
   .word-board {
-    padding: clamp(12px, 2dvh, 18px) 6px clamp(13px, 2.2dvh, 20px);
+    padding: clamp(16px, 2.5dvh, 22px) 8px clamp(17px, 2.7dvh, 24px);
   }
 
   .word-board p {
-    margin-bottom: clamp(9px, 1.5dvh, 14px);
+    margin-bottom: clamp(12px, 1.8dvh, 17px);
     font-size: clamp(0.86rem, 3.8vw, 1rem);
   }
 
@@ -2830,7 +2836,7 @@ input:focus-visible {
   }
 
   .entry-form {
-    margin-top: clamp(10px, 1.8dvh, 16px);
+    margin-top: clamp(18px, 2.6dvh, 24px);
   }
 
   .entry-form .enter-button {
@@ -2839,7 +2845,7 @@ input:focus-visible {
   }
 
   .entry-form p {
-    margin: 6px 0 3px;
+    margin: 8px 0 5px;
   }
 
   .round-feedback {
@@ -2849,7 +2855,7 @@ input:focus-visible {
 
   .rack {
     gap: 5px;
-    margin-top: 5px;
+    margin-top: clamp(10px, 1.8dvh, 16px);
   }
 
   .rack button {
