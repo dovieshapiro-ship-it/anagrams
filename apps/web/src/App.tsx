@@ -1525,7 +1525,7 @@ function KiwiWordsColumn(props: {
 }): React.JSX.Element {
   return (
     <article className="result-column kiwi-column">
-      <h2>POSSIBLE 6-LETTER WORDS</h2>
+      <h2>POSSIBLE ANAGRAMS</h2>
       <span className="kiwi-word-count">{props.words.length} POSSIBLE</span>
       <ul>
         {props.words.map((word) => (
