@@ -20,6 +20,7 @@ interface Session {
 }
 
 describe("two-player API integration", () => {
+  let sessionAddress = 1;
   let database: DatabaseHandle | undefined;
   let app: Awaited<ReturnType<typeof buildApp>> | undefined;
   let dictionary: Awaited<ReturnType<typeof loadDictionary>>;
@@ -425,12 +426,58 @@ describe("two-player API integration", () => {
     expect(replay.statusCode).toBe(401);
   });
 
+  it("deletes an account and anonymizes retained game history", async () => {
+    if (app === undefined || database === undefined)
+      throw new Error("Test setup did not complete");
+    const alice = await createSession("Alice");
+    const created = await post("/api/v1/games/solo", alice, {});
+    const gameId = created.json<{ gameId: string }>().gameId;
+
+    const deleted = await app.inject({
+      method: "DELETE",
+      url: "/api/v1/me",
+      headers: {
+        cookie: alice.cookie,
+        origin,
+        "x-csrf-token": alice.csrf,
+      },
+      payload: {},
+    });
+    expect(deleted.statusCode).toBe(200);
+    expect(deleted.json()).toEqual({ ok: true });
+
+    const [account] = await database.sqlClient<{ count: number }[]>`
+      select count(*)::int as count from users where id = ${alice.userId}
+    `;
+    expect(account?.count).toBe(0);
+    const [player] = await database.sqlClient<
+      { display_name: string; is_synthetic: boolean }[]
+    >`
+      select u.display_name, u.is_synthetic
+      from game_players gp
+      join users u on u.id = gp.user_id
+      where gp.game_id = ${gameId} and gp.seat = 1
+    `;
+    expect(player).toMatchObject({
+      display_name: "Deleted Player",
+      is_synthetic: true,
+    });
+
+    const me = await app.inject({
+      method: "GET",
+      url: "/api/v1/me",
+      headers: { cookie: alice.cookie },
+    });
+    expect(me.statusCode).toBe(401);
+  });
+
   async function createSession(displayName: string): Promise<Session> {
     if (app === undefined)
       throw new Error("Application setup did not complete");
     const response = await app.inject({
       method: "POST",
       url: "/api/v1/dev/sessions",
+      remoteAddress: `127.0.0.${sessionAddress++}`,
       payload: { displayName },
     });
     expect(response.statusCode).toBe(201);

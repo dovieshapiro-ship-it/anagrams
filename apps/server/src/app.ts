@@ -640,6 +640,43 @@ export async function buildApp(
     return { ok: true };
   });
 
+  app.delete("/api/v1/me", async (request, reply) => {
+    const userId = requireAuth(request);
+    await database.db.transaction(async (tx) => {
+      const [anonymousUser] = await tx
+        .insert(users)
+        .values({ displayName: "Deleted Player", isSynthetic: true })
+        .returning({ id: users.id });
+      if (!anonymousUser) throw new Error("anonymous account creation failed");
+
+      await tx
+        .update(games)
+        .set({ createdByUserId: anonymousUser.id })
+        .where(eq(games.createdByUserId, userId));
+      await tx
+        .update(gamePlayers)
+        .set({ userId: anonymousUser.id })
+        .where(eq(gamePlayers.userId, userId));
+      await tx
+        .update(invitations)
+        .set({ intendedUserId: null })
+        .where(eq(invitations.intendedUserId, userId));
+      await tx
+        .update(invitations)
+        .set({ usedByUserId: null })
+        .where(eq(invitations.usedByUserId, userId));
+
+      const [deleted] = await tx
+        .delete(users)
+        .where(and(eq(users.id, userId), eq(users.isSynthetic, false)))
+        .returning({ id: users.id });
+      if (!deleted) throw new ApiError(404, "NOT_FOUND", "Account not found");
+    });
+    reply.clearCookie(SESSION_COOKIE, { path: "/" });
+    reply.clearCookie(CSRF_COOKIE, { path: "/" });
+    return { ok: true };
+  });
+
   app.post("/api/v1/me/username", async (request) => {
     const userId = requireAuth(request);
     const { username } = usernameBody.parse(request.body);
