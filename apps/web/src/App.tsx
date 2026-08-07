@@ -314,6 +314,22 @@ export function App(): React.JSX.Element {
     }
   }
 
+  async function deleteAccount(): Promise<void> {
+    setBusy(true);
+    setError("");
+    try {
+      await api.deleteAccount();
+      resetToStart();
+      setSession(null);
+      setAuthView("welcome");
+    } catch (caught) {
+      setError(messageOf(caught));
+      throw caught;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function returnHome(): Promise<void> {
     resetToStart();
     try {
@@ -453,6 +469,7 @@ export function App(): React.JSX.Element {
               setSession((current) => current ? { ...current, hasPassword: true } : current);
             }}
             onLogout={() => void signOut()}
+            onDeleteAccount={deleteAccount}
           />
         )}
         {landing === "mode" && (
@@ -583,10 +600,13 @@ function StartScreen(props: {
   readonly onToggleSounds: () => void;
   readonly onSetPassword: (password: string) => Promise<void>;
   readonly onLogout: () => void;
+  readonly onDeleteAccount: () => Promise<void>;
 }): React.JSX.Element {
   const [accountOpen, setAccountOpen] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [passwordStatus, setPasswordStatus] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteStatus, setDeleteStatus] = useState("");
   return (
     <section className="start-screen screen" aria-labelledby="start-title">
       <AnimatedAnagramsTitle id="start-title" />
@@ -603,6 +623,20 @@ function StartScreen(props: {
           {!props.session.hasPassword && <form className="legacy-password" onSubmit={(event) => { event.preventDefault(); setPasswordStatus("SAVING…"); void props.onSetPassword(newPassword).then(() => { setPasswordStatus("PASSWORD SAVED"); setNewPassword(""); }).catch((caught: unknown) => setPasswordStatus(messageOf(caught))); }}><label htmlFor="legacy-password">SET A PASSWORD</label><input id="legacy-password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={8} maxLength={128} autoComplete="new-password" placeholder="8+ characters" /><button type="submit" disabled={newPassword.length < 8}>SAVE PASSWORD</button>{passwordStatus && <small>{passwordStatus}</small>}</form>}
           <button type="button" onClick={props.onFriends}>FRIENDS</button>
           <button type="button" onClick={props.onLeaderboard}>LEADERBOARD</button>
+          <a className="account-text-link" href="/privacy" target="_blank" rel="noreferrer">PRIVACY POLICY</a>
+          {!deleteOpen ? (
+            <button className="account-delete-link" type="button" onClick={() => setDeleteOpen(true)}>DELETE ACCOUNT</button>
+          ) : (
+            <div className="delete-account-confirm" role="alert">
+              <strong>DELETE YOUR ACCOUNT?</strong>
+              <p>This permanently removes your login, profile, friends, and personal information. This cannot be undone.</p>
+              <div>
+                <button type="button" onClick={() => { setDeleteOpen(false); setDeleteStatus(""); }}>CANCEL</button>
+                <button className="confirm-delete-button" type="button" disabled={deleteStatus === "DELETING…"} onClick={() => { setDeleteStatus("DELETING…"); void props.onDeleteAccount().catch((caught: unknown) => setDeleteStatus(messageOf(caught))); }}>DELETE FOREVER</button>
+              </div>
+              {deleteStatus && <small role="status">{deleteStatus}</small>}
+            </div>
+          )}
         </div>}
       </div>
       <div className="mode-actions">

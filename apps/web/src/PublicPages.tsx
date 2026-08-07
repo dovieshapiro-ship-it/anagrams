@@ -1,7 +1,9 @@
-type PublicPageKind = "privacy" | "marketing";
+type PublicPageKind = "privacy" | "marketing" | "support";
 
 export function PublicPage({ kind }: { kind: PublicPageKind }): React.JSX.Element {
-  return kind === "privacy" ? <PrivacyPolicy /> : <MarketingPage />;
+  if (kind === "privacy") return <PrivacyPolicy />;
+  if (kind === "support") return <SupportPage />;
+  return <MarketingPage />;
 }
 
 function PublicFrame({ children }: { children: React.ReactNode }): React.JSX.Element {
@@ -14,6 +16,7 @@ function PublicFrame({ children }: { children: React.ReactNode }): React.JSX.Ele
         {children}
         <nav className="public-page__nav" aria-label="Legal and product links">
           <a href="/marketing">About KiwiGram</a>
+          <a href="/support">Support</a>
           <a href="/privacy">Privacy Policy</a>
           <a href="/">Play KiwiGram</a>
         </nav>
@@ -93,8 +96,10 @@ function PrivacyPolicy(): React.JSX.Element {
 
         <h2>Your choices</h2>
         <p>
-          You may stop using the Service at any time. You may request access,
-          correction, or deletion of your account information by contacting us at
+          You may stop using the Service at any time. You can permanently delete your
+          account from the profile menu inside KiwiGram. You may request access or
+          correction of your account information, or ask questions about deletion, by
+          contacting us at
           <a href="mailto:dovieshapiro@gmail.com"> dovieshapiro@gmail.com</a>. We may
           need to verify your identity before completing a request.
         </p>
@@ -116,6 +121,34 @@ function PrivacyPolicy(): React.JSX.Element {
         <p>
           Questions or privacy requests may be sent to
           <a href="mailto:dovieshapiro@gmail.com"> dovieshapiro@gmail.com</a>.
+        </p>
+      </article>
+    </PublicFrame>
+  );
+}
+
+function SupportPage(): React.JSX.Element {
+  return (
+    <PublicFrame>
+      <article className="public-page__content">
+        <p className="public-page__eyebrow">KiwiGames</p>
+        <h1>KiwiGram Support</h1>
+        <p>
+          Need help with your account, a multiplayer game, scoring, or another part of
+          KiwiGram? Email us and include a short description of what happened.
+        </p>
+        <p>
+          <a href="mailto:dovieshapiro@gmail.com">dovieshapiro@gmail.com</a>
+        </p>
+        <h2>Account help</h2>
+        <p>
+          Use “Forgot Password” on the login screen to receive a one-time sign-in code.
+          You can permanently delete your account from the profile menu after signing in.
+        </p>
+        <h2>Game help</h2>
+        <p>
+          If a multiplayer game does not connect, include both players’ usernames and
+          the approximate time the problem occurred in your email.
         </p>
       </article>
     </PublicFrame>

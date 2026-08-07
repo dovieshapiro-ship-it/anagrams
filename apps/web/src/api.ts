@@ -340,6 +340,13 @@ export async function logout(): Promise<void> {
   });
 }
 
+export async function deleteAccount(): Promise<void> {
+  await request("/me", commandAcknowledgementSchema, {
+    method: "DELETE",
+    body: {},
+  });
+}
+
 export async function setUsername(username: string): Promise<string> {
   return (
     await request("/me/username", usernameResponseSchema, {

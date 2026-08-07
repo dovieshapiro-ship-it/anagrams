@@ -11,6 +11,8 @@ if (!root) throw new Error("Root element not found");
 
 const publicPage = window.location.pathname === "/privacy"
   ? "privacy"
+  : window.location.pathname === "/support"
+    ? "support"
   : window.location.pathname === "/marketing"
     ? "marketing"
     : undefined;

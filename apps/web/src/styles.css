@@ -145,6 +145,59 @@ input:focus-visible {
   padding-top: 24px;
   border-top: 1px solid rgba(182, 138, 56, 0.55);
 }
+.account-popover .account-text-link,
+.account-popover .account-delete-link {
+  display: block;
+  width: 100%;
+  padding: 7px 9px;
+  color: #4c3e2c;
+  background: transparent;
+  border: 0;
+  font: 700 0.68rem/1.2 Georgia, serif;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.account-popover .account-delete-link {
+  color: var(--oxblood);
+}
+.delete-account-confirm {
+  margin-top: 5px;
+  padding: 10px;
+  color: var(--ink);
+  background: #f4edda;
+  border: 1px solid var(--gold);
+  text-align: center;
+}
+.delete-account-confirm > strong {
+  color: var(--oxblood);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+.delete-account-confirm p {
+  margin: 7px 0 9px;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+.delete-account-confirm > div {
+  display: flex;
+  gap: 6px;
+}
+.delete-account-confirm button {
+  flex: 1;
+  padding: 7px 5px;
+  font-size: 0.58rem;
+}
+.delete-account-confirm .confirm-delete-button {
+  color: var(--ivory);
+  background: var(--oxblood);
+}
+.delete-account-confirm small {
+  display: block;
+  margin-top: 7px;
+  color: var(--oxblood);
+}
 @media (max-width: 640px) {
   .public-page {
     padding: 14px;
